@@ -1,0 +1,63 @@
+PIXINIT diagnostic report pixinit.report/1.0
+Exported UTC: 2026-09-27T07:29:09.4813153+00:00
+Observed UTC: 2026-09-27T07:29:09.4656892+00:00
+Session: 332a06e3-a88c-4b82-8f98-5d8a182ac6f2
+Device: INTEL SSDPEKNW512G8
+Serial: REDACTED
+Firmware: 004C
+Protocol / scope: Nvme / Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)
+Identity reliable for comparison: True
+Completion: Completed
+Assessment: No Issues Detected
+Coverage: Complete
+Checklist: PASS
+Parser / rules / schema: pixinit.nvme.parsers/1.0 / pixinit.nvme.health/1.0 / 1
+Checklist excludes performance, full-surface integrity and future reliability.
+
+CHECKS
+NVME.SPARE_WARNING | Pass | Critical Warning: spare below threshold | Device does not report this warning. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.TEMPERATURE_WARNING | Pass | Critical Warning: temperature threshold | Device does not report this warning. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.RELIABILITY_WARNING | Pass | Critical Warning: reliability degraded | Device does not report this warning. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.READ_ONLY_WARNING | Pass | Critical Warning: media read-only | Device does not report this warning. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.BACKUP_WARNING | Pass | Critical Warning: volatile-memory backup | Device does not report this warning. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.UNKNOWN_WARNING_BITS | Pass | Unknown Critical Warning bits | Unassigned bits: 0x00; no meaning invented. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.AVAILABLE_SPARE | Pass | Available Spare versus reported threshold | Spare 100%; threshold 10%. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.COMPOSITE_TEMPERATURE | Pass | Composite temperature versus reported thresholds | 36.85 °C; warning 76.85 °C; critical 79.85 °C. No application threshold used. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.MEDIA_ERRORS | Pass | Media/data-integrity error counter | Cumulative counter: 0. A positive historical count is attention evidence, not by itself a current failure. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.PERCENTAGE_USED | Pass | Estimated endurance consumed | Reported Percentage Used: 5%. No remaining-health or rated-TBW inference. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.UNSAFE_SHUTDOWNS | NotApplicable | Unsafe shutdown counter | Cumulative counter: 411. Informational only. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+NVME.ERROR_LOG_COUNT | NotApplicable | Error Information lifetime counter | Cumulative counter: 0. Separate from media errors and retrieved entries. | NVMe SMART/Health log 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+
+QUERIES
+Controller | Success | Controller-wide (adapter query); not exclusive to the selected namespace | IOCTL_STORAGE_QUERY_PROPERTY · ProtocolTypeNvme | 2026-09-27T07:29:09.4641313+00:00 | Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status. | rawBytes=0
+Namespace | NotQueried | Namespace unavailable; no numeric namespace ID established | IOCTL_STORAGE_QUERY_PROPERTY · ProtocolTypeNvme | 2026-09-27T07:29:09.4641737+00:00 | No verified namespace ID mapping; namespace query withheld. | rawBytes=0
+Health | Success | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | IOCTL_STORAGE_QUERY_PROPERTY · ProtocolTypeNvme | 2026-09-27T07:29:09.4656892+00:00 | Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status. | rawBytes=0
+Errors | Success | Controller-wide (adapter query); not exclusive to the selected namespace | IOCTL_STORAGE_QUERY_PROPERTY · ProtocolTypeNvme | 2026-09-27T07:29:09.4670450+00:00 | Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status. | rawBytes=0
+
+METRICS (large counters are lossless decimal text)
+nvme.critical_warning | 0 | bitmask | Available | NVMe SMART/Health log 02h · controller-wide | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.composite_temperature | 36.85000000000002 | °C | Available | NVMe SMART/Health log 02h · controller-wide | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.available_spare | 100 | % | Available | NVMe SMART/Health log 02h · controller-wide | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.percentage_used | 5 | % estimated endurance consumed | Available | NVMe SMART/Health log 02h · controller-wide | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.available_spare_threshold | 10 | % | Available | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.data_units_read | 39214825 | count | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.data_units_written | 30721498 | count | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.host_read_commands | 637379361 | count | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.host_write_commands | 658421686 | count | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.controller_busy_minutes | 18628 | minutes | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.power_cycles | 1320 | count | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.power_on_hours | 8283 | hours | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.unsafe_shutdowns | 411 | count | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.media_errors | 0 | count | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.error_log_lifetime_count | 0 | count | Available | NVMe SMART/Health 02h · unsigned 128-bit decimal text | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.temperature_sensor_1 | Unavailable | °C | Unavailable | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.temperature_sensor_2 | Unavailable | °C | Unavailable | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.temperature_sensor_3 | Unavailable | °C | Unavailable | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.temperature_sensor_4 | Unavailable | °C | Unavailable | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.temperature_sensor_5 | Unavailable | °C | Unavailable | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.temperature_sensor_6 | Unavailable | °C | Unavailable | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.temperature_sensor_7 | Unavailable | °C | Unavailable | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+nvme.temperature_sensor_8 | Unavailable | °C | Unavailable | NVMe SMART/Health 02h | Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable) | 2026-09-27T07:29:09.4656892+00:00
+
+Missing information:
+None for mandatory checklist inputs.

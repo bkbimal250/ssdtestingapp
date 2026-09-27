@@ -1,0 +1,484 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  pixinit -> C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\pixinit\bin\Release\net10.0-windows\pixinit.dll
+  pixinit.Tests -> C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\tests\pixinit.Tests\bin\Release\net10.0-windows\pixinit.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:06.77
+PASS 1: NVMe-only discovery selects NVMe
+PASS 2: SATA-only discovery selects SATA
+PASS 3: Unambiguous system drive preferred; both protocol lists retain selection
+PASS 4: Ambiguous system mapping uses SATA-first fallback
+PASS 5: Fallback orders stable IDs ordinally
+PASS 6: Rescan preserves independent selections and active tab
+PASS 7: User selection during discovery wins
+PASS 8: Disconnected selection clears while explicitly chosen tab remains
+PASS 9: User-selected empty tab is not overridden by discovery
+PASS 10: Unknown protocol never enters SATA or NVMe selection
+PASS 11: Available zero differs from missing data
+PASS 12: Unavailable readings reject fabricated values
+PASS 13: Concurrent scan command disabled
+PASS 14: Asynchronous completion preserves user tab choice
+PASS 15: Matching device accepts provider result
+PASS 16: Device switch clears readings and rejects late results from previous device
+PASS 17: Cancellation retains previous list and reports cancellation
+PASS 18: Discovery error reported and retry enabled
+PASS 19: Unavailable backend stays empty with scan disabled
+PASS 20: SetupAPI fixed structures match validated x64 ABI
+PASS 21: Direct Windows SATA/NVMe bus classification
+PASS 22: ATA, USB, RAID, SCSI, SAS, virtual, Spaces and unknown buses remain unidentified
+PASS 23: Truncated descriptor/header rejected
+PASS 24: Invalid serial offset preserves other descriptor fields
+PASS 25: Unterminated descriptor string rejected within bounds
+PASS 26: Oversized descriptor allocation rejected
+PASS 27: Raw property length checked
+PASS 28: Interface paths require bounded UTF-16 terminator
+PASS 29: Multiple extents on one physical disk can map unambiguously
+PASS 30: Multiple disks distinguished; truncated extent list rejected
+PASS 31: SATA does not imply SSD or diagnostic support
+PASS 32: Invalid capacity preserves a classified device with other real identity fields
+PASS 33: Real query fields retained when optional firmware/media unavailable
+PASS 34: Duplicate path records removed; matching serials do not merge distinct disks
+PASS 35: Missing serials preserve distinct identities
+PASS 36: Conflicting duplicate bus evidence withholds classification
+PASS 37: Per-device access denial retains a partial record
+PASS 38: Failed device does not remove successful device
+PASS 39: Single direct disk backing Windows preferred
+PASS 40: Duplicate disk-number matches and multi-disk Windows volumes remain ambiguous
+PASS 41: Virtual/unknown underlying storage never receives physical system preference
+PASS 42: Changed disk number does not change session identity selection
+PASS 43: Explicit empty-tab inspection survives subsequent rescans
+PASS 44: Successful empty enumeration clears disconnected selections
+PASS 45: Cancellation leaves scan blocked until uninterruptible worker returns
+PASS 46: Coordinator prevents accumulation of stuck workers
+PASS 47: Late cancelled-generation result rejected
+PASS 48: Close rejects outstanding results and prevents further scans
+PASS 49: Enumeration failure retains and visibly marks previous inventory stale
+PASS 50: Empty successful enumeration clears previous device and stale status
+PASS 51: Unknown-only discovery directs attention to Other / Unidentified
+PASS 52: Shell visibility triggers at most one automatic discovery
+PASS 53: Synthetic IDENTIFY word-swapped strings decode correctly
+PASS 54: IDENTIFY LBA48 and validated logical/physical sector relationship
+PASS 55: IDENTIFY LBA28 capacity uses valid sector size
+PASS 56: 4Kn identity does not assume 512-byte logical sectors
+PASS 57: Invalid sector-size validity withholds byte capacity
+PASS 58: Invalid long logical-sector size withheld
+PASS 59: Out-of-range LBA48 capacity rejected
+PASS 60: ATA feature flags, queue depth, rotating media and form factor
+PASS 61: Reserved/invalid IDENTIFY features remain unknown
+PASS 62: Non-rotating indication and disabled SMART parsed separately
+PASS 63: Short, zeroed and all-FF IDENTIFY rejected
+PASS 64: IDENTIFY checksum corruption rejected when A5 signature present
+PASS 65: ATAPI response cannot become SATA ATA identity
+PASS 66: Missing optional IDENTIFY checksum disclosed, not claimed verified
+PASS 67: Reordered SMART thresholds match by ID, not row
+PASS 68: SMART raw bytes, flags and explicit unsigned LE48 display retained
+PASS 69: Unknown F1/F2 stay visible without LBA, temperature or life inference
+PASS 70: Missing thresholds do not become zero
+PASS 71: Duplicate threshold IDs reported and matching withheld
+PASS 72: Duplicate SMART IDs retained as distinct slots without ambiguous threshold
+PASS 73: Nonzero attribute record with missing ID reported
+PASS 74: Malformed all-FF SMART slot flagged and preserved
+PASS 75: SMART data and threshold checksums validated
+PASS 76: Empty/short SMART structures rejected
+PASS 77: SMART RETURN STATUS C24F means threshold not exceeded only
+PASS 78: SMART RETURN STATUS 2CF4 means threshold exceeded
+PASS 79: Unknown or missing SMART task file never becomes Healthy
+PASS 80: ATA_PASS_THROUGH_EX x64 size and pointer/task-file offsets verified
+PASS 81: Four allowlisted requests have exact opcode, direction and transfer size
+PASS 82: SMART ENABLE rejected by exact allowlist
+PASS 83: Sector write rejected by exact allowlist
+PASS 84: Data-out flag rejected even for an allowed opcode
+PASS 85: Non-allowlisted transfer length rejected
+PASS 86: Valid buffered ATA response accepted
+PASS 87: DeviceIoControl success with ATA ERR/ABRT is not command success
+PASS 88: Returned invalid payload offset rejected
+PASS 89: Short transfer/returned length rejected
+PASS 90: Oversized native returned length cannot allocate or slice out of bounds
+PASS 91: Win32 denial/unsupported/disconnected/unexplained failure stay distinct
+PASS 92: Disk-number reuse with different identity rejected before ATA dispatch
+PASS 93: Changed disk number requires fresh discovery before diagnostic use
+PASS 94: SATA provider runs only four allowlisted operations and maps attributes
+PASS 95: SMART-reported status does not fabricate temperature or wear
+PASS 96: Disabled SMART prevents SMART commands; never enabled automatically
+PASS 97: Access-denied open reports outcomes without ATA commands
+PASS 98: Device removal prevents publishing an identity
+PASS 99: NVMe and unknown devices rejected before transport open
+PASS 100: Windows and ATA discrepancies retained without overwriting either source
+PASS 101: Diagnostics prevent discovery and duplicate diagnostics while native worker is in flight
+PASS 102: Shared operation gate rejects conflicting discovery independently of UI
+PASS 103: Selection change cancels and rejects late previous-device SATA results
+PASS 104: Cancelled SATA call holds worker gate until it actually completes
+PASS 105: Cancelled partial SATA results are never labelled complete
+PASS 106: Application close rejects late SATA results
+PASS 107: NVMe controller strings decode without ATA word swapping
+PASS 108: NVMe controller identifiers, version and namespace count parse
+PASS 109: NVMe controller log bounds and thermal capabilities parse
+PASS 110: Zero Identify Controller rejected
+PASS 111: Truncated Identify Controller rejected
+PASS 112: Invalid controller ASCII rejected
+PASS 113: Namespace scope and 4K byte capacity use wide arithmetic
+PASS 114: Namespace utilization validity and active format parse
+PASS 115: Unavailable namespace ID is rejected rather than guessed
+PASS 116: Namespace capacity shift overflow is rejected
+PASS 117: Namespace byte capacity uses BigInteger beyond UInt64 range
+PASS 118: Known and unknown Critical Warning bits are preserved
+PASS 119: Kelvin conversion with unavailable sensors is correct
+PASS 120: Percentage Used above 100 and spare values are preserved
+PASS 121: Unsigned 128-bit counters and 512000-byte Data Units avoid truncation
+PASS 122: Legitimate zero counters accepted while zero temperature and unreported Data Units stay unavailable
+PASS 123: Bounded error log omits unused entries and parses populated entry
+PASS 124: Error log bound rejects more than eight entries
+PASS 125: Exact NVMe read-query allowlist accepts four supported request types
+PASS 126: Mutated NVMe data type is rejected by exact allowlist
+PASS 127: Namespace query cannot use zero or guessed ID
+PASS 128: Valid protocol descriptor extracts bounded device-scope payload
+PASS 129: Overflowing protocol offset rejected
+PASS 130: Returned non-NVMe protocol descriptor rejected
+PASS 131: Truncated protocol descriptor rejected
+PASS 132: Windows access denial remains distinct
+PASS 133: Windows unsupported result remains distinct
+PASS 134: Identity mismatch detects disk-number reuse
+PASS 135: Provider dispatches only allowlisted controller, health and bounded error queries
+PASS 136: Controller results retained while namespace mapping is unavailable
+PASS 137: Withheld namespace result does not claim an established namespace zero
+PASS 138: Mapped usage preserves endurance consumed and conversion limits
+PASS 139: NVMe status remains distinct from the separately derived application assessment
+PASS 140: Optional error-log failure retains successful health
+PASS 141: SATA device rejected before NVMe transport dispatch
+PASS 142: NVMe diagnostics exclude rescans and duplicate reads while native work is active
+PASS 143: NVMe selection change cancels and rejects stale result
+PASS 144: Cancelled NVMe native worker retains operation gate until completion
+PASS 145: Cancelled NVMe partial result is not published as complete
+PASS 146: Application close rejects late NVMe result
+PASS 147: NVMe complete passing evidence produces No Issues Detected and checklist PASS
+PASS 148: Assessment does not calculate generic remaining health
+PASS 149: Missing mandatory NVMe evidence produces Unknown and INCONCLUSIVE
+PASS 150: Definite reliability warning produces Critical FAIL
+PASS 151: Definite failure is not hidden by partial coverage
+PASS 152: Available Spare below reported threshold is Warning evidence
+PASS 153: Percentage Used at or above 100 produces attention without universal failure
+PASS 154: Unsafe shutdown and broad error counters do not become unexplained failures
+PASS 155: SATA validated SMART status/data/thresholds meet checklist PASS
+PASS 156: Unknown SATA vendor raw attributes are excluded from assessment
+PASS 157: SATA device-reported threshold failure produces Critical FAIL
+PASS 158: SQLite schema creates original two-day retention default
+PASS 159: Snapshot retains invariant round-trip precision for converted metrics
+PASS 160: BigInteger database round-trip is lossless decimal text
+PASS 161: Raw payloads survive SQLite round-trip
+PASS 162: Historical row is explicitly completed and distinct from live state
+PASS 163: Partial and cancelled sessions are persisted explicitly and never labelled completed
+PASS 164: History filtering uses protocol and reliable device identity
+PASS 165: History reopens after store restart
+PASS 166: Snapshot transaction rolls back after forced failure
+PASS 167: Unsupported migration fails without deleting database
+PASS 168: Retention removes only records strictly older than cutoff transactionally
+PASS 169: Ambiguous identities disable automatic comparison
+PASS 170: Scope-compatible ordered snapshots compute lossless counter delta
+PASS 171: Decreasing counter is marked reset or incompatible without manufactured delta
+PASS 172: Different metric scope prevents comparison
+PASS 173: JSON export preserves large integer strings and redacts serial
+PASS 174: JSON raw payload export is optional and disabled by default
+PASS 175: Explicit export options can retain serial and include clearly labelled raw payloads
+PASS 176: TXT export preserves original assessment and rule version
+PASS 177: Invalid export destination does not affect stored snapshot
+PASS 178: Database failure leaves live diagnostic assessment usable
+PASS 179: Actual WPF window starts
+Host DPI: 96; work area: 0,0,1920,1040
+PASS 180: Both empty protocol tabs remain visible
+Captured actual running WPF client: sata-laptop.png, 1264 × 661 DIPs
+PASS 181: NVMe tab switches actual content
+Captured actual running WPF client: nvme-laptop.png, 1264 × 661 DIPs
+PASS 182: Protocol tab accepts keyboard focus
+PASS 183: Keyboard focus traversal remains available
+Captured actual running WPF client: sata-desktop.png, 1784 × 961 DIPs
+Captured actual running WPF client: nvme-desktop.png, 1784 × 961 DIPs
+PASS 184: Practical minimum window size runs
+Captured actual running WPF client: sata-minimum.png, 744 × 601 DIPs
+PASS 185: SMART table keeps a bounded, virtualized viewport at minimum size
+Captured actual running WPF client: test-only-long-identity.png, 744 × 601 DIPs
+PASS 186: Long test identity stays inside minimum-width view
+All 186 checks passed.
+PASS 1: NVMe-only discovery selects NVMe
+PASS 2: SATA-only discovery selects SATA
+PASS 3: Unambiguous system drive preferred; both protocol lists retain selection
+PASS 4: Ambiguous system mapping uses SATA-first fallback
+PASS 5: Fallback orders stable IDs ordinally
+PASS 6: Rescan preserves independent selections and active tab
+PASS 7: User selection during discovery wins
+PASS 8: Disconnected selection clears while explicitly chosen tab remains
+PASS 9: User-selected empty tab is not overridden by discovery
+PASS 10: Unknown protocol never enters SATA or NVMe selection
+PASS 11: Available zero differs from missing data
+PASS 12: Unavailable readings reject fabricated values
+PASS 13: Concurrent scan command disabled
+PASS 14: Asynchronous completion preserves user tab choice
+PASS 15: Matching device accepts provider result
+PASS 16: Device switch clears readings and rejects late results from previous device
+PASS 17: Cancellation retains previous list and reports cancellation
+PASS 18: Discovery error reported and retry enabled
+PASS 19: Unavailable backend stays empty with scan disabled
+PASS 20: SetupAPI fixed structures match validated x64 ABI
+PASS 21: Direct Windows SATA/NVMe bus classification
+PASS 22: ATA, USB, RAID, SCSI, SAS, virtual, Spaces and unknown buses remain unidentified
+PASS 23: Truncated descriptor/header rejected
+PASS 24: Invalid serial offset preserves other descriptor fields
+PASS 25: Unterminated descriptor string rejected within bounds
+PASS 26: Oversized descriptor allocation rejected
+PASS 27: Raw property length checked
+PASS 28: Interface paths require bounded UTF-16 terminator
+PASS 29: Multiple extents on one physical disk can map unambiguously
+PASS 30: Multiple disks distinguished; truncated extent list rejected
+PASS 31: SATA does not imply SSD or diagnostic support
+PASS 32: Invalid capacity preserves a classified device with other real identity fields
+PASS 33: Real query fields retained when optional firmware/media unavailable
+PASS 34: Duplicate path records removed; matching serials do not merge distinct disks
+PASS 35: Missing serials preserve distinct identities
+PASS 36: Conflicting duplicate bus evidence withholds classification
+PASS 37: Per-device access denial retains a partial record
+PASS 38: Failed device does not remove successful device
+PASS 39: Single direct disk backing Windows preferred
+PASS 40: Duplicate disk-number matches and multi-disk Windows volumes remain ambiguous
+PASS 41: Virtual/unknown underlying storage never receives physical system preference
+PASS 42: Changed disk number does not change session identity selection
+PASS 43: Explicit empty-tab inspection survives subsequent rescans
+PASS 44: Successful empty enumeration clears disconnected selections
+PASS 45: Cancellation leaves scan blocked until uninterruptible worker returns
+PASS 46: Coordinator prevents accumulation of stuck workers
+PASS 47: Late cancelled-generation result rejected
+PASS 48: Close rejects outstanding results and prevents further scans
+PASS 49: Enumeration failure retains and visibly marks previous inventory stale
+PASS 50: Empty successful enumeration clears previous device and stale status
+PASS 51: Unknown-only discovery directs attention to Other / Unidentified
+PASS 52: Shell visibility triggers at most one automatic discovery
+PASS 53: Synthetic IDENTIFY word-swapped strings decode correctly
+PASS 54: IDENTIFY LBA48 and validated logical/physical sector relationship
+PASS 55: IDENTIFY LBA28 capacity uses valid sector size
+PASS 56: 4Kn identity does not assume 512-byte logical sectors
+PASS 57: Invalid sector-size validity withholds byte capacity
+PASS 58: Invalid long logical-sector size withheld
+PASS 59: Out-of-range LBA48 capacity rejected
+PASS 60: ATA feature flags, queue depth, rotating media and form factor
+PASS 61: Reserved/invalid IDENTIFY features remain unknown
+PASS 62: Non-rotating indication and disabled SMART parsed separately
+PASS 63: Short, zeroed and all-FF IDENTIFY rejected
+PASS 64: IDENTIFY checksum corruption rejected when A5 signature present
+PASS 65: ATAPI response cannot become SATA ATA identity
+PASS 66: Missing optional IDENTIFY checksum disclosed, not claimed verified
+PASS 67: Reordered SMART thresholds match by ID, not row
+PASS 68: SMART raw bytes, flags and explicit unsigned LE48 display retained
+PASS 69: Unknown F1/F2 stay visible without LBA, temperature or life inference
+PASS 70: Missing thresholds do not become zero
+PASS 71: Duplicate threshold IDs reported and matching withheld
+PASS 72: Duplicate SMART IDs retained as distinct slots without ambiguous threshold
+PASS 73: Nonzero attribute record with missing ID reported
+PASS 74: Malformed all-FF SMART slot flagged and preserved
+PASS 75: SMART data and threshold checksums validated
+PASS 76: Empty/short SMART structures rejected
+PASS 77: SMART RETURN STATUS C24F means threshold not exceeded only
+PASS 78: SMART RETURN STATUS 2CF4 means threshold exceeded
+PASS 79: Unknown or missing SMART task file never becomes Healthy
+PASS 80: ATA_PASS_THROUGH_EX x64 size and pointer/task-file offsets verified
+PASS 81: Four allowlisted requests have exact opcode, direction and transfer size
+PASS 82: SMART ENABLE rejected by exact allowlist
+PASS 83: Sector write rejected by exact allowlist
+PASS 84: Data-out flag rejected even for an allowed opcode
+PASS 85: Non-allowlisted transfer length rejected
+PASS 86: Valid buffered ATA response accepted
+PASS 87: DeviceIoControl success with ATA ERR/ABRT is not command success
+PASS 88: Returned invalid payload offset rejected
+PASS 89: Short transfer/returned length rejected
+PASS 90: Oversized native returned length cannot allocate or slice out of bounds
+PASS 91: Win32 denial/unsupported/disconnected/unexplained failure stay distinct
+PASS 92: Disk-number reuse with different identity rejected before ATA dispatch
+PASS 93: Changed disk number requires fresh discovery before diagnostic use
+PASS 94: SATA provider runs only four allowlisted operations and maps attributes
+PASS 95: SMART-reported status does not fabricate temperature or wear
+PASS 96: Disabled SMART prevents SMART commands; never enabled automatically
+PASS 97: Access-denied open reports outcomes without ATA commands
+PASS 98: Device removal prevents publishing an identity
+PASS 99: NVMe and unknown devices rejected before transport open
+PASS 100: Windows and ATA discrepancies retained without overwriting either source
+PASS 101: Diagnostics prevent discovery and duplicate diagnostics while native worker is in flight
+PASS 102: Shared operation gate rejects conflicting discovery independently of UI
+PASS 103: Selection change cancels and rejects late previous-device SATA results
+PASS 104: Cancelled SATA call holds worker gate until it actually completes
+PASS 105: Cancelled partial SATA results are never labelled complete
+PASS 106: Application close rejects late SATA results
+PASS 107: NVMe controller strings decode without ATA word swapping
+PASS 108: NVMe controller identifiers, version and namespace count parse
+PASS 109: NVMe controller log bounds and thermal capabilities parse
+PASS 110: Zero Identify Controller rejected
+PASS 111: Truncated Identify Controller rejected
+PASS 112: Invalid controller ASCII rejected
+PASS 113: Namespace scope and 4K byte capacity use wide arithmetic
+PASS 114: Namespace utilization validity and active format parse
+PASS 115: Unavailable namespace ID is rejected rather than guessed
+PASS 116: Namespace capacity shift overflow is rejected
+PASS 117: Namespace byte capacity uses BigInteger beyond UInt64 range
+PASS 118: Known and unknown Critical Warning bits are preserved
+PASS 119: Kelvin conversion with unavailable sensors is correct
+PASS 120: Percentage Used above 100 and spare values are preserved
+PASS 121: Unsigned 128-bit counters and 512000-byte Data Units avoid truncation
+PASS 122: Legitimate zero counters accepted while zero temperature and unreported Data Units stay unavailable
+PASS 123: Bounded error log omits unused entries and parses populated entry
+PASS 124: Error log bound rejects more than eight entries
+PASS 125: Exact NVMe read-query allowlist accepts four supported request types
+PASS 126: Mutated NVMe data type is rejected by exact allowlist
+PASS 127: Namespace query cannot use zero or guessed ID
+PASS 128: Valid protocol descriptor extracts bounded device-scope payload
+PASS 129: Overflowing protocol offset rejected
+PASS 130: Returned non-NVMe protocol descriptor rejected
+PASS 131: Truncated protocol descriptor rejected
+PASS 132: Windows access denial remains distinct
+PASS 133: Windows unsupported result remains distinct
+PASS 134: Identity mismatch detects disk-number reuse
+PASS 135: Provider dispatches only allowlisted controller, health and bounded error queries
+PASS 136: Controller results retained while namespace mapping is unavailable
+PASS 137: Withheld namespace result does not claim an established namespace zero
+PASS 138: Mapped usage preserves endurance consumed and conversion limits
+PASS 139: NVMe status remains distinct from the separately derived application assessment
+PASS 140: Optional error-log failure retains successful health
+PASS 141: SATA device rejected before NVMe transport dispatch
+PASS 142: NVMe diagnostics exclude rescans and duplicate reads while native work is active
+PASS 143: NVMe selection change cancels and rejects stale result
+PASS 144: Cancelled NVMe native worker retains operation gate until completion
+PASS 145: Cancelled NVMe partial result is not published as complete
+PASS 146: Application close rejects late NVMe result
+PASS 147: NVMe complete passing evidence produces No Issues Detected and checklist PASS
+PASS 148: Assessment does not calculate generic remaining health
+PASS 149: Missing mandatory NVMe evidence produces Unknown and INCONCLUSIVE
+PASS 150: Definite reliability warning produces Critical FAIL
+PASS 151: Definite failure is not hidden by partial coverage
+PASS 152: Available Spare below reported threshold is Warning evidence
+PASS 153: Percentage Used at or above 100 produces attention without universal failure
+PASS 154: Unsafe shutdown and broad error counters do not become unexplained failures
+PASS 155: SATA validated SMART status/data/thresholds meet checklist PASS
+PASS 156: Unknown SATA vendor raw attributes are excluded from assessment
+PASS 157: SATA device-reported threshold failure produces Critical FAIL
+PASS 158: SQLite schema creates original two-day retention default
+PASS 159: Snapshot retains invariant round-trip precision for converted metrics
+PASS 160: BigInteger database round-trip is lossless decimal text
+PASS 161: Raw payloads survive SQLite round-trip
+PASS 162: Historical row is explicitly completed and distinct from live state
+PASS 163: Partial and cancelled sessions are persisted explicitly and never labelled completed
+PASS 164: History filtering uses protocol and reliable device identity
+PASS 165: History reopens after store restart
+PASS 166: Snapshot transaction rolls back after forced failure
+PASS 167: Unsupported migration fails without deleting database
+PASS 168: Retention removes only records strictly older than cutoff transactionally
+PASS 169: Ambiguous identities disable automatic comparison
+PASS 170: Scope-compatible ordered snapshots compute lossless counter delta
+PASS 171: Decreasing counter is marked reset or incompatible without manufactured delta
+PASS 172: Different metric scope prevents comparison
+PASS 173: JSON export preserves large integer strings and redacts serial
+PASS 174: JSON raw payload export is optional and disabled by default
+PASS 175: Explicit export options can retain serial and include clearly labelled raw payloads
+PASS 176: TXT export preserves original assessment and rule version
+PASS 177: Invalid export destination does not affect stored snapshot
+PASS 178: Database failure leaves live diagnostic assessment usable
+PASS 179: Production startup automatically completes real discovery
+PASS 180: Actual NVMe remains automatically selected
+PASS 181: Explicit NVMe diagnostic action enabled for confirmed NVMe
+PASS 182: Actual NVMe returns at least one validated protocol query
+PASS 183: Actual namespace query withheld without established namespace ID
+PASS 184: Two manual NVMe reads have stable health-query availability
+PASS 185: NVMe refresh preserves selection and active tab
+PASS 186: Actual NVMe checklist has complete mandatory evidence
+PASS 187: Actual NVMe assessment exposes temperature-threshold and media-error reasons
+PASS 188: Actual assessment retains unavailable namespace details
+PASS 189: Two actual NVMe sessions persist and reopen from SQLite after store restart
+PASS 190: Actual NVMe sessions produce a scope-compatible comparison
+PASS 191: Actual JSON export redacts serial and omits raw payloads by default
+PASS 192: Actual JSON exported values exactly match the selected snapshot
+PASS 193: Actual TXT export retains assessment rule version
+PASS 194: Production startup sends zero ATA commands
+PASS 195: SATA action disabled when no SATA device exists
+Captured actual running WPF client: phase5-assessment-laptop.png, 1264 × 661 DIPs
+Captured actual running WPF client: phase5-history-desktop.png, 1784 × 961 DIPs
+PASS 196: Manual rescan completes on actual hardware
+PASS 197: Actual rescan preserves protocol selections
+PASS 198: Dispatcher processes work during native discovery
+PASS 199: Automatic discovery entry is idempotent
+PASS 200: Real hardware rescans send zero ATA commands
+OS: Microsoft Windows NT 10.0.19045.0; process: X64; elevated token: False
+Initial automatic discovery: 84 ms; disks: 1; active tab: NVMe
+Window status: Discovery complete · 1 disks · Diagnostics not yet queried
+Disk 0: model=INTEL SSDPEKNW512G8; bus=Nvme (17); protocol=Nvme; media=Unknown; capacityBytes=512110190592; firmware=004C; serialPresent=True; removable=False; system=True; access=Available; mountCount=2; identityEvidence=PnP instance + interface path hash; session only; not a persistent hardware identity
+  Limitations: Windows reports no seek penalty; this alone does not establish SSD media. Media type unknown; diagnostics not yet queried.
+NVMe diagnostic read 1: native queries=3; summary=Read finished · 3/4 successful queries · Assessment No Issues Detected · Checklist PASS
+  Controller: Success; scope=Controller-wide (adapter query); not exclusive to the selected namespace; bytes=4096; observed=2026-09-27T07:21:30.2578501+00:00; reason=Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status.
+  Namespace: NotQueried; scope=Namespace unavailable; no numeric namespace ID established; bytes=0; observed=2026-09-27T07:21:30.2578782+00:00; reason=No verified namespace ID mapping; namespace query withheld.
+  Health: Success; scope=Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable); bytes=512; observed=2026-09-27T07:21:30.2593263+00:00; reason=Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status.
+  Errors: Success; scope=Controller-wide (adapter query); not exclusive to the selected namespace; bytes=512; observed=2026-09-27T07:21:30.2606498+00:00; reason=Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status.
+  Displayed: warning=0x00; temperature=41 °C; spare=100 %; spareThreshold=10%; percentageUsed=5 %
+  Usage: Data Units Read: 39214625
+Data Units Written: 30721186
+Host Read Commands: 637374094
+Host Write Commands: 658411784
+Controller Busy Time (minutes): 18628
+Power Cycles: 1320
+Power On Hours (hours): 8283
+Unsafe Shutdowns: 411
+Media/Data Integrity Errors: 0
+Lifetime Error Information Log Entry Count: 0
+Host read bytes ≈ 20077888000000 (20.078 TB / 18.261 TiB)
+Host written bytes ≈ 15729247232000 (15.729 TB / 14.306 TiB)
+Data Units are 1,000 × 512 bytes, rounded up; zero Data Units means not reported. Converted bytes are approximate, exclude metadata and are not current throughput or rated TBW. Other zero counters may be valid.
+Source: NVMe SMART/Health 02h · Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)
+Observed: 2026-09-27T07:21:30.2593263+00:00
+Manufacturer-rated TBW: Unavailable (no verified specification profile).
+NAND writes: Unavailable (no verified vendor-specific source).
+  Thermal: Sensor 1: Unavailable / not implemented
+Sensor 2: Unavailable / not implemented
+Sensor 3: Unavailable / not implemented
+Sensor 4: Unavailable / not implemented
+Sensor 5: Unavailable / not implemented
+Sensor 6: Unavailable / not implemented
+Sensor 7: Unavailable / not implemented
+Sensor 8: Unavailable / not implemented
+Warning composite temperature time: 0 minutes
+Critical composite temperature time: 0 minutes
+Thermal management T1/T2 transitions: 0 / 0
+T1/T2 total time: 0 / 0 seconds
+A zero thermal-management counter means never occurred or field not implemented.
+Source: NVMe SMART/Health 02h · Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)
+Observed: 2026-09-27T07:21:30.2593263+00:00
+  Errors: Retrieved 0 populated entries from 8 bounded slots; unused zero-count slots omitted.
+
+Lifetime log count is separate from entries retrieved and does not alone prove current media failure.
+  Identity/capacity cross-check: discovery model=INTEL SSDPEKNW512G8; firmware=004C; capacityBytes=512110190592; Identify=Identify model: INTEL SSDPEKNW512G8
+Serial: redacted (raw payload contains serial)
+Firmware: 004C
+VID/SSVID: 8086/8086; Controller ID: 1
+NVMe version: 1.3.0
+Namespace count: 1 (not physical SSD count)
+LPA capabilities: 0x0F; Error slots: 256
+Warning / critical threshold: 76.85 °C (350 K) / 79.85 °C (353 K)
+Discovery/Identify identity discrepancy: both sources retained; review discovery details.
+
+Namespace ID/details: unavailable; discovery does not establish a namespace mapping. No namespace ID guessed.
+PCIe generation/lane width: unavailable; NVMe version does not establish link speed.
+NVMe diagnostic read 2: summary=Read finished · 3/4 successful queries · Assessment No Issues Detected · Checklist PASS; health availability stable=Success
+Actual assessment: state=No Issues Detected; coverage=Complete; checklist=PASS; rules=pixinit.nvme.health/1.0; scope=Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)
+  Check NVME.SPARE_WARNING: Pass; Device does not report this warning.
+  Check NVME.TEMPERATURE_WARNING: Pass; Device does not report this warning.
+  Check NVME.RELIABILITY_WARNING: Pass; Device does not report this warning.
+  Check NVME.READ_ONLY_WARNING: Pass; Device does not report this warning.
+  Check NVME.BACKUP_WARNING: Pass; Device does not report this warning.
+  Check NVME.UNKNOWN_WARNING_BITS: Pass; Unassigned bits: 0x00; no meaning invented.
+  Check NVME.AVAILABLE_SPARE: Pass; Spare 100%; threshold 10%.
+  Check NVME.COMPOSITE_TEMPERATURE: Pass; 40.85 °C; warning 76.85 °C; critical 79.85 °C. No application threshold used.
+  Check NVME.MEDIA_ERRORS: Pass; Cumulative counter: 0. A positive historical count is attention evidence, not by itself a current failure.
+  Check NVME.PERCENTAGE_USED: Pass; Reported Percentage Used: 5%. No remaining-health or rated-TBW inference.
+  Check NVME.UNSAFE_SHUTDOWNS: NotApplicable; Cumulative counter: 411. Informational only.
+  Check NVME.ERROR_LOG_COUNT: NotApplicable; Cumulative counter: 0. Separate from media errors and retrieved entries.
+History: reopened 2 recent matching sessions; compatible metric comparisons=15; database=C:\Users\ADMIN\AppData\Local\PIXINIT\SataUtility\data\history.db
+Exports: C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\docs\phase-5-intel-nvme.json; C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\docs\phase-5-intel-nvme.txt; selected snapshot values matched JSON exactly; serial redacted; raw payloads omitted
+Native ATA dispatches: 0; physical SATA diagnostics: NOT RUN (hardware harness performs discovery only)
+Rescan: 8 ms; dispatcher timer ticks: 1; selections preserved: true
+Final native dispatch counters: NVMe=6; ATA=0
+All 200 checks passed.

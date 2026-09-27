@@ -1,0 +1,7 @@
+OS: Microsoft Windows NT 10.0.19045.0; process: X64; elevated token: False
+Initial automatic discovery: 113 ms; disks: 1; active tab: NVMe
+Window status: Discovery complete · 1 disks · Diagnostics not yet queried
+Disk 0: model=INTEL SSDPEKNW512G8; bus=Nvme (17); protocol=Nvme; media=Unknown; capacityBytes=512110190592; firmware=004C; serialPresent=True; removable=False; system=True; access=Available; mountCount=2; identityEvidence=PnP instance + interface path hash; session only; not a persistent hardware identity
+  Limitations: Windows reports no seek penalty; this alone does not establish SSD media. Media type unknown; diagnostics not yet queried.
+Native ATA dispatches: 0; physical SATA diagnostics: NOT RUN (hardware harness performs discovery only)
+Rescan: 14 ms; dispatcher timer ticks: 2; selections preserved: true

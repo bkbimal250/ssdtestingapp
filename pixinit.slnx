@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="pixinit/pixinit.csproj" />
+  <Project Path="tests/pixinit.Tests/pixinit.Tests.csproj" />
+</Solution>

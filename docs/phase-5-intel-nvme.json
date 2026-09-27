@@ -1,0 +1,430 @@
+{
+  "ReportSchemaVersion": "pixinit.report/1.0",
+  "ExportedAtUtc": "2026-09-27T07:29:09.4770602+00:00",
+  "Snapshot": {
+    "Id": "332a06e3-a88c-4b82-8f98-5d8a182ac6f2",
+    "ApplicationSessionId": "228e4903-819b-4f47-b7b8-50a40e971749",
+    "Device": {
+      "Model": "INTEL SSDPEKNW512G8",
+      "Serial": "REDACTED",
+      "Firmware": "004C",
+      "Protocol": "Nvme",
+      "Bus": "Nvme",
+      "NativeBusType": 17,
+      "CapacityBytes": 512110190592,
+      "IdentityEvidence": "PnP instance \u002B interface path hash; session only; not a persistent hardware identity",
+      "InstanceId": "SCSI\\DISK\u0026VEN_NVME\u0026PROD_INTEL_SSDPEKNW51\\5\u002638603C38\u00260\u0026000000",
+      "InterfacePath": "\\\\?\\scsi#disk\u0026ven_nvme\u0026prod_intel_ssdpeknw51#5\u002638603c38\u00260\u0026000000#{53f56307-b6bf-11d0-94f2-00a0c91efb8b}",
+      "MatchKey": "4B3313B8C832DCDF15D07BC86B22D01452C36BD0A775286FF1A40548E236A434",
+      "IdentityReliable": true
+    },
+    "Protocol": "Nvme",
+    "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)",
+    "ObservedAtUtc": "2026-09-27T07:29:09.4656892+00:00",
+    "CompletionState": "Completed",
+    "Queries": [
+      {
+        "Name": "Controller",
+        "Outcome": "Success",
+        "Explanation": "Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status.",
+        "Scope": "Controller-wide (adapter query); not exclusive to the selected namespace",
+        "Source": "IOCTL_STORAGE_QUERY_PROPERTY \u00B7 ProtocolTypeNvme",
+        "ObservedAt": "2026-09-27T07:29:09.4641313+00:00",
+        "NativeError": null,
+        "Raw": ""
+      },
+      {
+        "Name": "Namespace",
+        "Outcome": "NotQueried",
+        "Explanation": "No verified namespace ID mapping; namespace query withheld.",
+        "Scope": "Namespace unavailable; no numeric namespace ID established",
+        "Source": "IOCTL_STORAGE_QUERY_PROPERTY \u00B7 ProtocolTypeNvme",
+        "ObservedAt": "2026-09-27T07:29:09.4641737+00:00",
+        "NativeError": null,
+        "Raw": ""
+      },
+      {
+        "Name": "Health",
+        "Outcome": "Success",
+        "Explanation": "Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status.",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)",
+        "Source": "IOCTL_STORAGE_QUERY_PROPERTY \u00B7 ProtocolTypeNvme",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "NativeError": null,
+        "Raw": ""
+      },
+      {
+        "Name": "Errors",
+        "Outcome": "Success",
+        "Explanation": "Validated Windows protocol descriptor. Fixed return DWORD is retained; this query path provides no full NVMe completion status.",
+        "Scope": "Controller-wide (adapter query); not exclusive to the selected namespace",
+        "Source": "IOCTL_STORAGE_QUERY_PROPERTY \u00B7 ProtocolTypeNvme",
+        "ObservedAt": "2026-09-27T07:29:09.467045+00:00",
+        "NativeError": null,
+        "Raw": ""
+      }
+    ],
+    "Metrics": [
+      {
+        "Key": "nvme.critical_warning",
+        "ValueText": "0",
+        "Unit": "bitmask",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health log 02h \u00B7 controller-wide",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.composite_temperature",
+        "ValueText": "36.85000000000002",
+        "Unit": "\u00B0C",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health log 02h \u00B7 controller-wide",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.available_spare",
+        "ValueText": "100",
+        "Unit": "%",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health log 02h \u00B7 controller-wide",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.percentage_used",
+        "ValueText": "5",
+        "Unit": "% estimated endurance consumed",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health log 02h \u00B7 controller-wide",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.available_spare_threshold",
+        "ValueText": "10",
+        "Unit": "%",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.data_units_read",
+        "ValueText": "39214825",
+        "Unit": "count",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.data_units_written",
+        "ValueText": "30721498",
+        "Unit": "count",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.host_read_commands",
+        "ValueText": "637379361",
+        "Unit": "count",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.host_write_commands",
+        "ValueText": "658421686",
+        "Unit": "count",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.controller_busy_minutes",
+        "ValueText": "18628",
+        "Unit": "minutes",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.power_cycles",
+        "ValueText": "1320",
+        "Unit": "count",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.power_on_hours",
+        "ValueText": "8283",
+        "Unit": "hours",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.unsafe_shutdowns",
+        "ValueText": "411",
+        "Unit": "count",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.media_errors",
+        "ValueText": "0",
+        "Unit": "count",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.error_log_lifetime_count",
+        "ValueText": "0",
+        "Unit": "count",
+        "Availability": "Available",
+        "Source": "NVMe SMART/Health 02h \u00B7 unsigned 128-bit decimal text",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.temperature_sensor_1",
+        "ValueText": null,
+        "Unit": "\u00B0C",
+        "Availability": "Unavailable",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.temperature_sensor_2",
+        "ValueText": null,
+        "Unit": "\u00B0C",
+        "Availability": "Unavailable",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.temperature_sensor_3",
+        "ValueText": null,
+        "Unit": "\u00B0C",
+        "Availability": "Unavailable",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.temperature_sensor_4",
+        "ValueText": null,
+        "Unit": "\u00B0C",
+        "Availability": "Unavailable",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.temperature_sensor_5",
+        "ValueText": null,
+        "Unit": "\u00B0C",
+        "Availability": "Unavailable",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.temperature_sensor_6",
+        "ValueText": null,
+        "Unit": "\u00B0C",
+        "Availability": "Unavailable",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.temperature_sensor_7",
+        "ValueText": null,
+        "Unit": "\u00B0C",
+        "Availability": "Unavailable",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      },
+      {
+        "Key": "nvme.temperature_sensor_8",
+        "ValueText": null,
+        "Unit": "\u00B0C",
+        "Availability": "Unavailable",
+        "Source": "NVMe SMART/Health 02h",
+        "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+        "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+      }
+    ],
+    "Assessment": {
+      "State": "NoIssuesDetected",
+      "Coverage": "Complete",
+      "Checklist": "Pass",
+      "Checks": [
+        {
+          "RuleId": "NVME.SPARE_WARNING",
+          "Name": "Critical Warning: spare below threshold",
+          "Mandatory": true,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Device does not report this warning.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.TEMPERATURE_WARNING",
+          "Name": "Critical Warning: temperature threshold",
+          "Mandatory": true,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Device does not report this warning.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.RELIABILITY_WARNING",
+          "Name": "Critical Warning: reliability degraded",
+          "Mandatory": true,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Device does not report this warning.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.READ_ONLY_WARNING",
+          "Name": "Critical Warning: media read-only",
+          "Mandatory": true,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Device does not report this warning.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.BACKUP_WARNING",
+          "Name": "Critical Warning: volatile-memory backup",
+          "Mandatory": true,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Device does not report this warning.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.UNKNOWN_WARNING_BITS",
+          "Name": "Unknown Critical Warning bits",
+          "Mandatory": false,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Unassigned bits: 0x00; no meaning invented.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.AVAILABLE_SPARE",
+          "Name": "Available Spare versus reported threshold",
+          "Mandatory": true,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Spare 100%; threshold 10%.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.COMPOSITE_TEMPERATURE",
+          "Name": "Composite temperature versus reported thresholds",
+          "Mandatory": true,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "36.85 \u00B0C; warning 76.85 \u00B0C; critical 79.85 \u00B0C. No application threshold used.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.MEDIA_ERRORS",
+          "Name": "Media/data-integrity error counter",
+          "Mandatory": true,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Cumulative counter: 0. A positive historical count is attention evidence, not by itself a current failure.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.PERCENTAGE_USED",
+          "Name": "Estimated endurance consumed",
+          "Mandatory": false,
+          "Outcome": "Pass",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Reported Percentage Used: 5%. No remaining-health or rated-TBW inference.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.UNSAFE_SHUTDOWNS",
+          "Name": "Unsafe shutdown counter",
+          "Mandatory": false,
+          "Outcome": "NotApplicable",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Cumulative counter: 411. Informational only.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        },
+        {
+          "RuleId": "NVME.ERROR_LOG_COUNT",
+          "Name": "Error Information lifetime counter",
+          "Mandatory": false,
+          "Outcome": "NotApplicable",
+          "Severity": "NoIssuesDetected",
+          "Evidence": "Cumulative counter: 0. Separate from media errors and retrieved entries.",
+          "Source": "NVMe SMART/Health log 02h",
+          "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+          "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
+        }
+      ],
+      "RuleSetVersion": "pixinit.nvme.health/1.0",
+      "ProtocolScope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)",
+      "ObservedAt": "2026-09-27T07:29:09.4656892+00:00",
+      "StateDisplay": "No Issues Detected",
+      "ChecklistDisplay": "PASS",
+      "Explanation": "Critical Warning: spare below threshold: Pass \u2014 Device does not report this warning. [NVME.SPARE_WARNING]\nCritical Warning: temperature threshold: Pass \u2014 Device does not report this warning. [NVME.TEMPERATURE_WARNING]\nCritical Warning: reliability degraded: Pass \u2014 Device does not report this warning. [NVME.RELIABILITY_WARNING]\nCritical Warning: media read-only: Pass \u2014 Device does not report this warning. [NVME.READ_ONLY_WARNING]\nCritical Warning: volatile-memory backup: Pass \u2014 Device does not report this warning. [NVME.BACKUP_WARNING]\nUnknown Critical Warning bits: Pass \u2014 Unassigned bits: 0x00; no meaning invented. [NVME.UNKNOWN_WARNING_BITS]\nAvailable Spare versus reported threshold: Pass \u2014 Spare 100%; threshold 10%. [NVME.AVAILABLE_SPARE]\nComposite temperature versus reported thresholds: Pass \u2014 36.85 \u00B0C; warning 76.85 \u00B0C; critical 79.85 \u00B0C. No application threshold used. [NVME.COMPOSITE_TEMPERATURE]\nMedia/data-integrity error counter: Pass \u2014 Cumulative counter: 0. A positive historical count is attention evidence, not by itself a current failure. [NVME.MEDIA_ERRORS]\nEstimated endurance consumed: Pass \u2014 Reported Percentage Used: 5%. No remaining-health or rated-TBW inference. [NVME.PERCENTAGE_USED]\nUnsafe shutdown counter: NotApplicable \u2014 Cumulative counter: 411. Informational only. [NVME.UNSAFE_SHUTDOWNS]\nError Information lifetime counter: NotApplicable \u2014 Cumulative counter: 0. Separate from media errors and retrieved entries. [NVME.ERROR_LOG_COUNT]",
+      "Missing": ""
+    },
+    "ParserVersion": "pixinit.nvme.parsers/1.0",
+    "RuleSetVersion": "pixinit.nvme.health/1.0",
+    "SchemaVersion": 1
+  },
+  "LargeIntegerRepresentation": "Metric values, including UInt128/BigInteger counters, are decimal strings in Snapshot.Metrics[].ValueText.",
+  "SerialRedacted": true,
+  "RawPayloadsIncluded": false,
+  "Limitation": "Performance, full-surface integrity and future reliability are outside this diagnostic checklist."
+}

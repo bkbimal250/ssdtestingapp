@@ -1,0 +1,45 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  pixinit -> C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\pixinit\bin\Release\net10.0-windows\pixinit.dll
+  pixinit.Tests -> C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\tests\pixinit.Tests\bin\Release\net10.0-windows\pixinit.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.12
+PASS 1: NVMe-only discovery selects NVMe
+PASS 2: SATA-only discovery selects SATA
+PASS 3: Unambiguous system drive preferred; both protocol lists retain selection
+PASS 4: Ambiguous system mapping uses SATA-first fallback
+PASS 5: Fallback orders stable IDs ordinally
+PASS 6: Rescan preserves independent selections and active tab
+PASS 7: User selection during discovery wins
+PASS 8: Disconnected selection clears and available protocol activates
+PASS 9: User-selected empty tab is not overridden by discovery
+PASS 10: Unknown protocol never enters SATA or NVMe selection
+PASS 11: Available zero differs from missing data
+PASS 12: Unavailable readings reject fabricated values
+PASS 13: Concurrent scan command disabled
+PASS 14: Asynchronous completion preserves user tab choice
+PASS 15: Matching device accepts provider result
+PASS 16: Device switch clears readings and rejects late results from previous device
+PASS 17: Cancellation retains previous list and reports cancellation
+PASS 18: Discovery error reported and retry enabled
+PASS 19: Production starts empty with scan disabled
+PASS 20: Actual WPF window starts
+Host DPI: 96; work area: 0,0,1920,1040
+PASS 21: Both empty protocol tabs remain visible
+Captured actual running WPF client: sata-laptop.png, 1264 × 661 DIPs
+PASS 22: NVMe tab switches actual content
+Captured actual running WPF client: nvme-laptop.png, 1264 × 661 DIPs
+PASS 23: Protocol tab accepts keyboard focus
+PASS 24: Keyboard focus traversal remains available
+Captured actual running WPF client: sata-desktop.png, 1784 × 961 DIPs
+Captured actual running WPF client: nvme-desktop.png, 1784 × 961 DIPs
+PASS 25: Practical minimum window size runs
+Captured actual running WPF client: sata-minimum.png, 744 × 601 DIPs
+PASS 26: SMART table keeps a bounded, virtualized viewport at minimum size
+Captured actual running WPF client: test-only-long-identity.png, 744 × 601 DIPs
+PASS 27: Long test identity stays inside minimum-width view
+All 27 checks passed.

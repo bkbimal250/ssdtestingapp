@@ -1,0 +1,144 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  pixinit -> C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\pixinit\bin\Release\net10.0-windows\pixinit.dll
+  pixinit.Tests -> C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\tests\pixinit.Tests\bin\Release\net10.0-windows\pixinit.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:07.35
+PASS 1: NVMe-only discovery selects NVMe
+PASS 2: SATA-only discovery selects SATA
+PASS 3: Unambiguous system drive preferred; both protocol lists retain selection
+PASS 4: Ambiguous system mapping uses SATA-first fallback
+PASS 5: Fallback orders stable IDs ordinally
+PASS 6: Rescan preserves independent selections and active tab
+PASS 7: User selection during discovery wins
+PASS 8: Disconnected selection clears while explicitly chosen tab remains
+PASS 9: User-selected empty tab is not overridden by discovery
+PASS 10: Unknown protocol never enters SATA or NVMe selection
+PASS 11: Available zero differs from missing data
+PASS 12: Unavailable readings reject fabricated values
+PASS 13: Concurrent scan command disabled
+PASS 14: Asynchronous completion preserves user tab choice
+PASS 15: Matching device accepts provider result
+PASS 16: Device switch clears readings and rejects late results from previous device
+PASS 17: Cancellation retains previous list and reports cancellation
+PASS 18: Discovery error reported and retry enabled
+PASS 19: Unavailable backend stays empty with scan disabled
+PASS 20: SetupAPI fixed structures match validated x64 ABI
+PASS 21: Direct Windows SATA/NVMe bus classification
+PASS 22: ATA, USB, RAID, SCSI, SAS, virtual, Spaces and unknown buses remain unidentified
+PASS 23: Truncated descriptor/header rejected
+PASS 24: Invalid serial offset preserves other descriptor fields
+PASS 25: Unterminated descriptor string rejected within bounds
+PASS 26: Oversized descriptor allocation rejected
+PASS 27: Raw property length checked
+PASS 28: Interface paths require bounded UTF-16 terminator
+PASS 29: Multiple extents on one physical disk can map unambiguously
+PASS 30: Multiple disks distinguished; truncated extent list rejected
+PASS 31: SATA does not imply SSD or diagnostic support
+PASS 32: Invalid capacity preserves a classified device with other real identity fields
+PASS 33: Real query fields retained when optional firmware/media unavailable
+PASS 34: Duplicate path records removed; matching serials do not merge distinct disks
+PASS 35: Missing serials preserve distinct identities
+PASS 36: Conflicting duplicate bus evidence withholds classification
+PASS 37: Per-device access denial retains a partial record
+PASS 38: Failed device does not remove successful device
+PASS 39: Single direct disk backing Windows preferred
+PASS 40: Duplicate disk-number matches and multi-disk Windows volumes remain ambiguous
+PASS 41: Virtual/unknown underlying storage never receives physical system preference
+PASS 42: Changed disk number does not change session identity selection
+PASS 43: Explicit empty-tab inspection survives subsequent rescans
+PASS 44: Successful empty enumeration clears disconnected selections
+PASS 45: Cancellation leaves scan blocked until uninterruptible worker returns
+PASS 46: Coordinator prevents accumulation of stuck workers
+PASS 47: Late cancelled-generation result rejected
+PASS 48: Close rejects outstanding results and prevents further scans
+PASS 49: Enumeration failure retains and visibly marks previous inventory stale
+PASS 50: Empty successful enumeration clears previous device and stale status
+PASS 51: Unknown-only discovery directs attention to Other / Unidentified
+PASS 52: Shell visibility triggers at most one automatic discovery
+PASS 53: Actual WPF window starts
+Host DPI: 96; work area: 0,0,1920,1040
+PASS 54: Both empty protocol tabs remain visible
+Captured actual running WPF client: sata-laptop.png, 1264 × 661 DIPs
+PASS 55: NVMe tab switches actual content
+Captured actual running WPF client: nvme-laptop.png, 1264 × 661 DIPs
+PASS 56: Protocol tab accepts keyboard focus
+PASS 57: Keyboard focus traversal remains available
+Captured actual running WPF client: sata-desktop.png, 1784 × 961 DIPs
+Captured actual running WPF client: nvme-desktop.png, 1784 × 961 DIPs
+PASS 58: Practical minimum window size runs
+Captured actual running WPF client: sata-minimum.png, 744 × 601 DIPs
+PASS 59: SMART table keeps a bounded, virtualized viewport at minimum size
+Captured actual running WPF client: test-only-long-identity.png, 744 × 601 DIPs
+PASS 60: Long test identity stays inside minimum-width view
+All 60 checks passed.
+PASS 1: NVMe-only discovery selects NVMe
+PASS 2: SATA-only discovery selects SATA
+PASS 3: Unambiguous system drive preferred; both protocol lists retain selection
+PASS 4: Ambiguous system mapping uses SATA-first fallback
+PASS 5: Fallback orders stable IDs ordinally
+PASS 6: Rescan preserves independent selections and active tab
+PASS 7: User selection during discovery wins
+PASS 8: Disconnected selection clears while explicitly chosen tab remains
+PASS 9: User-selected empty tab is not overridden by discovery
+PASS 10: Unknown protocol never enters SATA or NVMe selection
+PASS 11: Available zero differs from missing data
+PASS 12: Unavailable readings reject fabricated values
+PASS 13: Concurrent scan command disabled
+PASS 14: Asynchronous completion preserves user tab choice
+PASS 15: Matching device accepts provider result
+PASS 16: Device switch clears readings and rejects late results from previous device
+PASS 17: Cancellation retains previous list and reports cancellation
+PASS 18: Discovery error reported and retry enabled
+PASS 19: Unavailable backend stays empty with scan disabled
+PASS 20: SetupAPI fixed structures match validated x64 ABI
+PASS 21: Direct Windows SATA/NVMe bus classification
+PASS 22: ATA, USB, RAID, SCSI, SAS, virtual, Spaces and unknown buses remain unidentified
+PASS 23: Truncated descriptor/header rejected
+PASS 24: Invalid serial offset preserves other descriptor fields
+PASS 25: Unterminated descriptor string rejected within bounds
+PASS 26: Oversized descriptor allocation rejected
+PASS 27: Raw property length checked
+PASS 28: Interface paths require bounded UTF-16 terminator
+PASS 29: Multiple extents on one physical disk can map unambiguously
+PASS 30: Multiple disks distinguished; truncated extent list rejected
+PASS 31: SATA does not imply SSD or diagnostic support
+PASS 32: Invalid capacity preserves a classified device with other real identity fields
+PASS 33: Real query fields retained when optional firmware/media unavailable
+PASS 34: Duplicate path records removed; matching serials do not merge distinct disks
+PASS 35: Missing serials preserve distinct identities
+PASS 36: Conflicting duplicate bus evidence withholds classification
+PASS 37: Per-device access denial retains a partial record
+PASS 38: Failed device does not remove successful device
+PASS 39: Single direct disk backing Windows preferred
+PASS 40: Duplicate disk-number matches and multi-disk Windows volumes remain ambiguous
+PASS 41: Virtual/unknown underlying storage never receives physical system preference
+PASS 42: Changed disk number does not change session identity selection
+PASS 43: Explicit empty-tab inspection survives subsequent rescans
+PASS 44: Successful empty enumeration clears disconnected selections
+PASS 45: Cancellation leaves scan blocked until uninterruptible worker returns
+PASS 46: Coordinator prevents accumulation of stuck workers
+PASS 47: Late cancelled-generation result rejected
+PASS 48: Close rejects outstanding results and prevents further scans
+PASS 49: Enumeration failure retains and visibly marks previous inventory stale
+PASS 50: Empty successful enumeration clears previous device and stale status
+PASS 51: Unknown-only discovery directs attention to Other / Unidentified
+PASS 52: Shell visibility triggers at most one automatic discovery
+PASS 53: Production startup automatically completes real discovery
+Captured actual running WPF client: phase2-laptop.png, 1264 × 661 DIPs
+Captured actual running WPF client: phase2-desktop.png, 1784 × 961 DIPs
+PASS 54: Manual rescan completes on actual hardware
+PASS 55: Actual rescan preserves protocol selections
+PASS 56: Dispatcher processes work during native discovery
+PASS 57: Automatic discovery entry is idempotent
+OS: Microsoft Windows NT 10.0.19045.0; process: X64; elevated token: False
+Initial automatic discovery: 84 ms; disks: 1; active tab: NVMe
+Window status: Discovery complete · 1 disks · Diagnostics not yet queried
+Disk 0: model=INTEL SSDPEKNW512G8; bus=Nvme (17); protocol=Nvme; media=Unknown; capacityBytes=512110190592; firmware=004C; serialPresent=True; removable=False; system=True; access=Available; mountCount=2; identityEvidence=PnP instance + interface path hash; session only; not a persistent hardware identity
+  Limitations: Windows reports no seek penalty; this alone does not establish SSD media. Media type unknown; diagnostics not yet queried.
+Rescan: 13 ms; dispatcher timer ticks: 1; selections preserved: true
+All 57 checks passed.

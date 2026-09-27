@@ -1,0 +1,77 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build artifacts
+**/bin/
+**/obj/
+out/
+
+# Publish outputs
+publish/
+*.Publish.xml
+*.publishsettings
+
+# NuGet
+*.nupkg
+packages/
+.nuget/
+
+# Visual Studio Code
+.vscode/
+
+# Rider
+.idea/
+
+# ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+coverage.opencover.xml
+
+# SQLite and local DBs
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Logs
+*.log
+
+# User secrets (sometimes checked in by mistake)
+secrets.json
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Visual Studio Code workspace storage
+.history/
+
+# Ignore Visual Studio debug source copies (if accidentally added)
+.vsdbg*/
+
+# Ignore JetBrains Rider caches
+.idea/
+
+# Ignore node modules if present
+node_modules/
+
+# Ignore generated package lock files (optional)
+package-lock.json
+
+# End of .gitignore

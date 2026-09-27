@@ -1,0 +1,107 @@
+PASS 1: NVMe-only discovery selects NVMe
+PASS 2: SATA-only discovery selects SATA
+PASS 3: Unambiguous system drive preferred; both protocol lists retain selection
+PASS 4: Ambiguous system mapping uses SATA-first fallback
+PASS 5: Fallback orders stable IDs ordinally
+PASS 6: Rescan preserves independent selections and active tab
+PASS 7: User selection during discovery wins
+PASS 8: Disconnected selection clears while explicitly chosen tab remains
+PASS 9: User-selected empty tab is not overridden by discovery
+PASS 10: Unknown protocol never enters SATA or NVMe selection
+PASS 11: Available zero differs from missing data
+PASS 12: Unavailable readings reject fabricated values
+PASS 13: Concurrent scan command disabled
+PASS 14: Asynchronous completion preserves user tab choice
+PASS 15: Matching device accepts provider result
+PASS 16: Device switch clears readings and rejects late results from previous device
+PASS 17: Cancellation retains previous list and reports cancellation
+PASS 18: Discovery error reported and retry enabled
+PASS 19: Unavailable backend stays empty with scan disabled
+PASS 20: SetupAPI fixed structures match validated x64 ABI
+PASS 21: Direct Windows SATA/NVMe bus classification
+PASS 22: ATA, USB, RAID, SCSI, SAS, virtual, Spaces and unknown buses remain unidentified
+PASS 23: Truncated descriptor/header rejected
+PASS 24: Invalid serial offset preserves other descriptor fields
+PASS 25: Unterminated descriptor string rejected within bounds
+PASS 26: Oversized descriptor allocation rejected
+PASS 27: Raw property length checked
+PASS 28: Interface paths require bounded UTF-16 terminator
+PASS 29: Multiple extents on one physical disk can map unambiguously
+PASS 30: Multiple disks distinguished; truncated extent list rejected
+PASS 31: SATA does not imply SSD or diagnostic support
+PASS 32: Invalid capacity preserves a classified device with other real identity fields
+PASS 33: Real query fields retained when optional firmware/media unavailable
+PASS 34: Duplicate path records removed; matching serials do not merge distinct disks
+PASS 35: Missing serials preserve distinct identities
+PASS 36: Conflicting duplicate bus evidence withholds classification
+PASS 37: Per-device access denial retains a partial record
+PASS 38: Failed device does not remove successful device
+PASS 39: Single direct disk backing Windows preferred
+PASS 40: Duplicate disk-number matches and multi-disk Windows volumes remain ambiguous
+PASS 41: Virtual/unknown underlying storage never receives physical system preference
+PASS 42: Changed disk number does not change session identity selection
+PASS 43: Explicit empty-tab inspection survives subsequent rescans
+PASS 44: Successful empty enumeration clears disconnected selections
+PASS 45: Cancellation leaves scan blocked until uninterruptible worker returns
+PASS 46: Coordinator prevents accumulation of stuck workers
+PASS 47: Late cancelled-generation result rejected
+PASS 48: Close rejects outstanding results and prevents further scans
+PASS 49: Enumeration failure retains and visibly marks previous inventory stale
+PASS 50: Empty successful enumeration clears previous device and stale status
+PASS 51: Unknown-only discovery directs attention to Other / Unidentified
+PASS 52: Shell visibility triggers at most one automatic discovery
+PASS 53: Synthetic IDENTIFY word-swapped strings decode correctly
+PASS 54: IDENTIFY LBA48 and validated logical/physical sector relationship
+PASS 55: IDENTIFY LBA28 capacity uses valid sector size
+PASS 56: 4Kn identity does not assume 512-byte logical sectors
+PASS 57: Invalid sector-size validity withholds byte capacity
+PASS 58: Invalid long logical-sector size withheld
+PASS 59: Out-of-range LBA48 capacity rejected
+PASS 60: ATA feature flags, queue depth, rotating media and form factor
+PASS 61: Reserved/invalid IDENTIFY features remain unknown
+PASS 62: Non-rotating indication and disabled SMART parsed separately
+PASS 63: Short, zeroed and all-FF IDENTIFY rejected
+PASS 64: IDENTIFY checksum corruption rejected when A5 signature present
+PASS 65: ATAPI response cannot become SATA ATA identity
+PASS 66: Missing optional IDENTIFY checksum disclosed, not claimed verified
+PASS 67: Reordered SMART thresholds match by ID, not row
+PASS 68: SMART raw bytes, flags and explicit unsigned LE48 display retained
+PASS 69: Unknown F1/F2 stay visible without LBA, temperature or life inference
+PASS 70: Missing thresholds do not become zero
+PASS 71: Duplicate threshold IDs reported and matching withheld
+PASS 72: Duplicate SMART IDs retained as distinct slots without ambiguous threshold
+PASS 73: Nonzero attribute record with missing ID reported
+PASS 74: Malformed all-FF SMART slot flagged and preserved
+PASS 75: SMART data and threshold checksums validated
+PASS 76: Empty/short SMART structures rejected
+PASS 77: SMART RETURN STATUS C24F means threshold not exceeded only
+PASS 78: SMART RETURN STATUS 2CF4 means threshold exceeded
+PASS 79: Unknown or missing SMART task file never becomes Healthy
+PASS 80: ATA_PASS_THROUGH_EX x64 size and pointer/task-file offsets verified
+PASS 81: Four allowlisted requests have exact opcode, direction and transfer size
+PASS 82: SMART ENABLE rejected by exact allowlist
+PASS 83: Sector write rejected by exact allowlist
+PASS 84: Data-out flag rejected even for an allowed opcode
+PASS 85: Non-allowlisted transfer length rejected
+PASS 86: Valid buffered ATA response accepted
+PASS 87: DeviceIoControl success with ATA ERR/ABRT is not command success
+PASS 88: Returned invalid payload offset rejected
+PASS 89: Short transfer/returned length rejected
+PASS 90: Oversized native returned length cannot allocate or slice out of bounds
+PASS 91: Win32 denial/unsupported/disconnected/unexplained failure stay distinct
+PASS 92: Disk-number reuse with different identity rejected before ATA dispatch
+PASS 93: Changed disk number requires fresh discovery before diagnostic use
+PASS 94: SATA provider runs only four allowlisted operations and maps attributes
+PASS 95: SMART-reported status does not fabricate temperature or wear
+PASS 96: Disabled SMART prevents SMART commands; never enabled automatically
+PASS 97: Access-denied open reports outcomes without ATA commands
+PASS 98: Device removal prevents publishing an identity
+PASS 99: NVMe and unknown devices rejected before transport open
+PASS 100: Windows and ATA discrepancies retained without overwriting either source
+PASS 101: Diagnostics prevent discovery and duplicate diagnostics while native worker is in flight
+PASS 102: Shared operation gate rejects conflicting discovery independently of UI
+PASS 103: Selection change cancels and rejects late previous-device SATA results
+PASS 104: Cancelled SATA call holds worker gate until it actually completes
+PASS 105: Cancelled partial SATA results are never labelled complete
+PASS 106: Application close rejects late SATA results
+All 106 checks passed.
