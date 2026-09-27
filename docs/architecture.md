@@ -16,17 +16,20 @@ pixinit/
     Diagnostics/Nvme/             Native NVMe health result
     Assessment/                   Versioned SATA/NVMe evidence rules and checklist contract
     History/                      Immutable snapshot and conservative comparison contract
+    Benchmark/                    Versioned workload, result, limit and comparison contracts
     Abstractions/                 Discovery and separate provider contracts
   Application/
     Discovery/                    Cancellation-aware background coordination
     Selection/                    UI-independent selection policy
     Reporting/                    TXT/JSON snapshot export with redaction
+    Benchmarking/                 Filesystem target mapping and write-consent contract
   Infrastructure/Windows/Discovery/
                                   SetupAPI discovery, bounded descriptor parsing and volume mapping
   Infrastructure/Windows/Interop/ Native API declarations and SafeHandle ownership
   Infrastructure/Logging/        Local discovery errors with Win32 codes
   Infrastructure/History/        Versioned transactional SQLite store
-  ViewModels/{Shell,Sata,Nvme,History,Shared}/
+  Infrastructure/Benchmarking/   Bounded owned-file engine and manifest cleanup
+  ViewModels/{Shell,Sata,Nvme,History,Benchmark,Shared}/
   Views/{Sata,Nvme,Shared}/
   Resources/{Themes,Styles}/
 tests/pixinit.Tests/               Executable behavior and WPF verification
@@ -86,3 +89,17 @@ Core/Assessment derives a versioned application assessment from completed SATA o
 Core/History creates immutable snapshots containing device evidence, query outcomes/raw payloads, lossless metric text and the original assessment/rule/parser/schema versions. Automatic comparison requires a reliable combined identity key plus matching protocol, scope, units, source and timestamp order. Infrastructure/History stores snapshots and normalized child rows transactionally under LocalAppData with a two-day configurable default and asynchronous cleanup. Cancelled/failed attempts are explicit non-complete snapshots. History failure never removes the live protocol result.
 
 Application/Reporting exports one selected live or historical snapshot. Serial redaction defaults on and raw payloads default off; JSON counter values remain decimal strings. The shell retains the two protocol tabs and hosts the paged history/filter/detail/export area below them. See phase-5-validation.md for the rule table, schema, actual INTEL results and remaining checks.
+
+## Phase 6 benchmark boundary
+
+Core/Benchmark defines `benchmark-policy-v1`, exact workload configuration, independent operation results, monotonic throughput/IOPS/latency calculations, completion states and strict comparison compatibility. Application/Benchmarking resolves a user-selected filesystem directory to current discovery evidence without treating a drive letter or disk number as persistent identity. Its explicit consent contract is keyed to the complete target/workload signature.
+
+Infrastructure/Benchmarking uses only asynchronous `FileStream` operations within a cryptographically named application-owned file and manifest. It has no raw-device handle or protocol command dependency. Preparation uses deterministic nontrivial data. Every path validates size, blocks, iterations, random operation count, queue depth, maximum writes and free-space reserve before file creation. Cancellation stops scheduling, closes handles and performs ownership-verified cleanup; window close waits for that sequence.
+
+SQLite schema 2 adds benchmark sessions transactionally beside the Phase 5 tables. Methodology comparison requires reliable target identity and identical scope/configuration. Benchmark reporting is separate from diagnostic reporting but retains serial redaction and lossless counter strings. The collapsible benchmark area sits below the unchanged SATA/NVMe tabs. See phase-6-validation.md.
+
+## Phase 7 release boundary
+
+The executable manifest is `asInvoker`, PerMonitorV2-aware and x64-published self-contained. The Inno Setup package installs per user under LocalAppData; application data remains in its existing LocalAppData location and is outside installer ownership. `build/release.ps1` runs the Release/UI gate before publish, rejects development artifacts, builds the installer and records SHA-256. Signing is intentionally absent until an organization-controlled certificate is available.
+
+Benchmark ownership now combines an unpredictable manifest/name with the Windows volume serial and file index obtained from the opened handle. Target ancestors, the owned directory, manifest and data file must not be reparse points. The engine rechecks identity before preparation, each operation and deletion. See phase-7-validation.md.

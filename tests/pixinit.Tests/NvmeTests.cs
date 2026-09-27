@@ -100,6 +100,7 @@ internal static partial class Program
         var scan = shell.ScanAsync(); discovery.Completion.SetResult([SyntheticNvme(), SyntheticNvme("nvme-b")]); await scan;
         var read = shell.ReadNvmeAsync(); await blocked.Started.Task;
         Check(!shell.ScanCommand.CanExecute(null) && !shell.ReadNvmeCommand.CanExecute(null), "NVMe diagnostics exclude rescans and duplicate reads while native work is active");
+        Check(!shell.Benchmark.StartCommand.CanExecute(null), "Benchmark cannot start while NVMe diagnostics are in flight");
         shell.SelectedNvme = shell.NvmeDevices.Single(d => d.Id == "nvme-b"); blocked.Completion.SetResult(result with { DeviceId = "nvme-a" }); await read;
         Check(shell.Nvme.Result is null && shell.SelectedNvme.Id == "nvme-b" && shell.NvmeOperationStatus.Contains("cancelled"), "NVMe selection change cancels and rejects stale result");
         blocked = new(); shell = new(new DiscoveryCoordinator(discovery, gate), null, new NvmeOperationCoordinator(blocked, gate)); await shell.ScanAsync(); read = shell.ReadNvmeAsync(); await blocked.Started.Task; shell.Cancel();

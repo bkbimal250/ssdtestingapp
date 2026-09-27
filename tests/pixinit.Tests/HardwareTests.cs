@@ -14,11 +14,14 @@ using pixinit.ViewModels.Shell;
 using pixinit.Infrastructure.Windows.Sata;
 using pixinit.Infrastructure.Windows.Nvme;
 using pixinit.Core.Diagnostics.Common;
+using pixinit.Core.Benchmark;
+using pixinit.Application.Benchmarking;
 
 namespace pixinit.Tests;
 
 internal static partial class Program
 {
+    private sealed class HardwareConsent : IWriteConsent { public int Calls; public Task<bool> RequestAsync(BenchmarkConfiguration configuration, long maximumWriteBytes) { Calls++; return Task.FromResult(true); } }
     private static void HardwareTests()
     {
         Exception? failure = null;
@@ -112,6 +115,54 @@ internal static partial class Program
                 Check(WindowsAtaTransport.DispatchCount == 0, "Production startup sends zero ATA commands");
                 Check(vm.SataDevices.Count != 0 || !vm.ReadSataCommand.CanExecute(null), "SATA action disabled when no SATA device exists");
                 report.Add($"Native ATA dispatches: {WindowsAtaTransport.DispatchCount}; physical SATA diagnostics: NOT RUN (hardware harness performs discovery only)");
+
+                if (vm.SelectedNvme is not null)
+                {
+                    var consent = new HardwareConsent(); vm.Benchmark.ConsentProvider = consent; vm.Benchmark.Preset = BenchmarkPreset.Quick;
+                    vm.Benchmark.TargetDirectory = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData); vm.Benchmark.ConfigurationChanged();
+                    var actualTarget = BenchmarkTargetResolver.Resolve(vm.Benchmark.TargetDirectory, devices);
+                    Check(actualTarget.PhysicalIdentityReliable && actualTarget.Device?.Model == vm.SelectedNvme.Model, "Actual benchmark filesystem maps to the selected Intel NVMe with reliable session evidence");
+                    Check(vm.Benchmark.Configuration().MaximumWriteBytes() == 68 * BenchmarkPolicy.MiB, "Actual Quick workload is bounded to 68 MiB maximum writes per completed run");
+                    if (window.FindName("HistoryExpander") is Expander oldHistory) oldHistory.IsExpanded = false;
+                    if (window.FindName("BenchmarkExpander") is Expander benchmarkExpander) benchmarkExpander.IsExpanded = true;
+                    window.Width = 1280; window.Height = 700; Pump(); Capture(window, "phase6-benchmark-config-laptop.png");
+
+                    bool activeCaptured = false, cancellationRequested = false;
+                    vm.Benchmark.PropertyChanged += (_, change) =>
+                    {
+                        if (!activeCaptured && vm.Benchmark.Busy && change.PropertyName == nameof(vm.Benchmark.ProgressPercent) && vm.Benchmark.ProgressPercent > 0) { activeCaptured = true; window.UpdateLayout(); Capture(window, "phase6-benchmark-active-laptop.png"); }
+                        if (!cancellationRequested && vm.Benchmark.Busy && vm.Benchmark.CurrentOperation.Contains("Preparing") && vm.Benchmark.ProgressPercent >= 15) { cancellationRequested = true; vm.Benchmark.Cancel(); }
+                    };
+                    await vm.Benchmark.RunAsync(); var cancelledBenchmark = vm.Benchmark.Result ?? throw new InvalidOperationException("Cancelled benchmark result missing.");
+                    Check(cancelledBenchmark.Completion == BenchmarkCompletion.Cancelled && cancelledBenchmark.CleanupSucceeded, "Actual benchmark cancellation preserves Cancelled state and cleans the owned file");
+                    Check(activeCaptured && consent.Calls == 1, "Actual explicit write consent flow ran once and active benchmark UI was captured");
+
+                    await vm.Benchmark.RunAsync(); var firstBenchmark = vm.Benchmark.Result ?? throw new InvalidOperationException("First completed benchmark missing.");
+                    await vm.Benchmark.RunAsync(); var secondBenchmark = vm.Benchmark.Result ?? throw new InvalidOperationException("Second completed benchmark missing.");
+                    Check(firstBenchmark.Completion == BenchmarkCompletion.Completed && secondBenchmark.Completion == BenchmarkCompletion.Completed && secondBenchmark.Results.Count == 4, "Two actual Quick sessions complete all four filesystem operations");
+                    Check(secondBenchmark.Results.All(r => r.State == BenchmarkOperationState.Completed && r.BytesProcessed > 0 && r.MeasuredSeconds > 0) && secondBenchmark.Results.Where(r => r.Iops is not null).All(r => r.Iops > 0), "Actual sequential throughput, random IOPS and latency measurements are populated");
+                    long actualWrites = new[] { cancelledBenchmark, firstBenchmark, secondBenchmark }.Sum(s => s.PreparationBytesWritten + s.Results.Where(r => r.Operation is BenchmarkOperation.SequentialWrite or BenchmarkOperation.RandomWrite).Sum(r => r.BytesProcessed));
+                    Check(actualWrites <= 2 * 68 * BenchmarkPolicy.MiB + 32 * BenchmarkPolicy.MiB, "Actual validation writes remain within all configured session allowances");
+                    Check(new[] { cancelledBenchmark, firstBenchmark, secondBenchmark }.All(s => s.CleanupSucceeded && !File.Exists(s.BenchmarkFilePath)), "All actual benchmark files are cleaned after cancellation and completion");
+                    Check(vm.Nvme.Result!.Responses.Single(r => r.Operation == Core.Diagnostics.Nvme.NvmeOperation.Namespace).Outcome == Core.Diagnostics.Nvme.NvmeOutcome.NotQueried, "Benchmarking does not invent unavailable NVMe namespace information");
+
+                    var benchmarkStore = new SqliteHistoryStore(); await benchmarkStore.InitializeAsync(); var benchmarkRows = await benchmarkStore.ListBenchmarksAsync(0, 20, secondBenchmark.Target.Device?.MatchKey);
+                    var twoCompleted = benchmarkRows.Where(r => r.CompletionState == "Completed").Take(2).ToArray(); Check(twoCompleted.Length == 2, "Actual benchmark history reopens after a new store instance");
+                    var currentBenchmark = await benchmarkStore.LoadBenchmarkAsync(twoCompleted[0].Id) ?? throw new InvalidOperationException("Reopened benchmark missing."); var priorBenchmark = await benchmarkStore.LoadBenchmarkAsync(twoCompleted[1].Id) ?? throw new InvalidOperationException("Prior benchmark missing.");
+                    Check(BenchmarkComparisons.Compare(priorBenchmark, currentBenchmark).Count == 4, "Actual compatible benchmark sessions compare all four operations");
+                    string benchmarkJson = Path.GetFullPath("docs/phase-6-intel-nvme-benchmark.json"), benchmarkTxt = Path.GetFullPath("docs/phase-6-intel-nvme-benchmark.txt");
+                    await BenchmarkReportExporter.ExportJsonAsync(currentBenchmark, benchmarkJson); await BenchmarkReportExporter.ExportTextAsync(currentBenchmark, benchmarkTxt);
+                    using var benchmarkExport = JsonDocument.Parse(await File.ReadAllTextAsync(benchmarkJson)); var exportedResults = benchmarkExport.RootElement.GetProperty("Session").GetProperty("Results").EnumerateArray().ToArray();
+                    Check(exportedResults.Select(e => e.GetProperty("BytesProcessed").GetInt64()).SequenceEqual(currentBenchmark.Results.Select(r => r.BytesProcessed)) && benchmarkExport.RootElement.GetProperty("Session").GetProperty("Target").GetProperty("Device").GetProperty("Serial").GetString() == "REDACTED", "Actual benchmark JSON values match history and serial is redacted");
+                    Check((await File.ReadAllTextAsync(benchmarkTxt)).Contains(BenchmarkPolicy.Version), "Actual benchmark TXT includes the policy version and methodology");
+                    Check(WindowsAtaTransport.DispatchCount == 0, "Actual filesystem benchmarks dispatch zero ATA mutation commands");
+                    report.Add($"Phase 6 target: {currentBenchmark.Target.Directory}; {currentBenchmark.Target.MappingEvidence}; preset={currentBenchmark.Configuration.Preset}; policy={currentBenchmark.PolicyVersion}");
+                    foreach (var r in currentBenchmark.Results) report.Add($"  {r.Operation}: bytes={r.BytesProcessed}; seconds={r.MeasuredSeconds:R}; MB/s={r.MegabytesPerSecond:R}; MiB/s={r.MebibytesPerSecond:R}; IOPS={r.Iops?.ToString("R") ?? "N/A"}; latency avg/min/max ms={r.Latency?.AverageMilliseconds:R}/{r.Latency?.MinimumMilliseconds:R}/{r.Latency?.MaximumMilliseconds:R}");
+                    report.Add($"Phase 6 actual bytes written across cancelled + two completed sessions: {actualWrites}; configured upper bound: {2 * 68 * BenchmarkPolicy.MiB + 32 * BenchmarkPolicy.MiB}; all cleanup succeeded=true; consent prompts={consent.Calls}");
+                    report.Add($"Phase 6 history reopened={twoCompleted.Length}; compatible comparisons={BenchmarkComparisons.Compare(priorBenchmark, currentBenchmark).Count}; exports={benchmarkTxt}, {benchmarkJson}");
+                    window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "phase6-benchmark-completed-desktop.png");
+                    vm.Benchmark.SelectedHistoryRow = vm.Benchmark.Sessions.FirstOrDefault(r => r.Id == currentBenchmark.Id); await Task.Delay(100); Pump(); Capture(window, "phase6-benchmark-history-desktop.png");
+                }
                 window.Width = 1280; window.Height = 700; Pump();
                 if (Find<pixinit.Views.Nvme.NvmeView>(window).Single().Content is ScrollViewer nvmeScroll) nvmeScroll.ScrollToVerticalOffset(235);
                 Pump(); Capture(window, "phase5-assessment-laptop.png");
@@ -134,7 +185,7 @@ internal static partial class Program
                 Check(vm.State == ScanState.Completed, "Automatic discovery entry is idempotent");
                 Check(WindowsAtaTransport.DispatchCount == 0, "Real hardware rescans send zero ATA commands");
                 report.Add($"Final native dispatch counters: NVMe={WindowsNvmeTransport.DispatchCount}; ATA={WindowsAtaTransport.DispatchCount}");
-                File.WriteAllLines("docs/phase-5-hardware-observations.txt", report);
+                File.WriteAllLines("docs/phase-6-hardware-observations.txt", report);
                 foreach (string line in report) Console.WriteLine(line);
             }
             catch (Exception ex) { failure = ex; }

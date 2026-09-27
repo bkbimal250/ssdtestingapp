@@ -77,7 +77,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         this.discovery = discovery;
         this.sataCoordinator = sataCoordinator; this.nvmeCoordinator = nvmeCoordinator; History = historyStore is null ? null : new(historyStore);
-        Benchmark = new(benchmarkEngine ?? new FileBenchmarkEngine(), historyStore, () => selection.Devices, () => ActiveTab == 0 ? SelectedSata : SelectedNvme, RefreshOperations, writeConsent);
+        Benchmark = new(benchmarkEngine ?? new FileBenchmarkEngine(), historyStore, () => selection.Devices, () => ActiveTab == 0 ? SelectedSata : SelectedNvme, RefreshOperations, writeConsent, CurrentTemperature, () => !closed && !SataBusy && !NvmeBusy && State != ScanState.Running);
         OperationStatus = discovery.IsAvailable ? "Ready to discover drives" : "Discovery unavailable · Phase 1 foundation";
         ScanCommand = new(async () => await ScanAsync(), () => !closed && !Benchmark.Busy && !SataBusy && !NvmeBusy && discovery.IsAvailable && State != ScanState.Running);
         ReadSataCommand = new(async () => await ReadSataAsync(), () => !closed && !Benchmark.Busy && !SataBusy && !NvmeBusy && !IsStale && State != ScanState.Running && this.sataCoordinator is not null && SelectedSata is { Protocol: StorageProtocol.Sata, Bus: ConnectionBus.Sata, NativeBusType: 11 });
@@ -140,6 +140,7 @@ public sealed class ShellViewModel : ObservableObject
         CancelCommand.Refresh();
     }
     public void Close() { closed = true; Benchmark.Close(); Cancel(); ScanCommand.Refresh(); }
+    public async Task CloseAsync() { closed = true; await Benchmark.CancelAndWaitAsync(); Cancel(); ScanCommand.Refresh(); }
     public async Task StartInitialScanAsync()
     {
         if (initialScanStarted) return;
@@ -233,7 +234,15 @@ public sealed class ShellViewModel : ObservableObject
     private void RefreshOperations()
     {
         Changed(nameof(SataBusy)); Changed(nameof(NvmeBusy)); Changed(nameof(ScanExplanation));
-        ReadSataCommand.Refresh(); ReadNvmeCommand.Refresh(); ScanCommand.Refresh(); CancelCommand.Refresh();
+        ReadSataCommand.Refresh(); ReadNvmeCommand.Refresh(); ScanCommand.Refresh(); CancelCommand.Refresh(); Benchmark.StartCommand.Refresh();
+    }
+    private BenchmarkTemperature? CurrentTemperature()
+    {
+        if (ActiveTab == 1 && Nvme.Result?.Temperature is { Value: double value, Availability: Availability.Available } metric)
+            return new(value, metric.Availability.ToString(), metric.Source ?? "NVMe SMART/Health", Nvme.Result.Assessment?.ProtocolScope ?? "NVMe scope unavailable", metric.ObservedAt);
+        if (ActiveTab == 0 && Sata.Result?.Temperature is { Value: double sataValue, Availability: Availability.Available } sataMetric)
+            return new(sataValue, sataMetric.Availability.ToString(), sataMetric.Source ?? "SATA diagnostics", "Selected SATA device", sataMetric.ObservedAt);
+        return null;
     }
 }
 

@@ -7,8 +7,11 @@ namespace pixinit.Infrastructure.Benchmarking;
 public sealed class FileBenchmarkEngine
 {
     private readonly OwnedBenchmarkFileManager files;
+    internal BenchmarkOperation? FailOperationForTest { get; set; }
     public FileBenchmarkEngine(OwnedBenchmarkFileManager? files = null) => this.files = files ?? new();
     public static bool UsesRawDeviceWrites => false;
+    public Task<IReadOnlyList<OwnedFileRecord>> FindOwnedFilesAsync(string targetDirectory, CancellationToken token = default) => files.FindOrphansAsync(targetDirectory, token);
+    public Task CleanupOwnedFileAsync(OwnedFileRecord record, CancellationToken token = default) => files.CleanupAsync(record, token);
 
     public async Task<BenchmarkSession> RunAsync(BenchmarkTarget target, BenchmarkConfiguration configuration, bool consentGranted,
         IProgress<BenchmarkProgress>? progress = null, CancellationToken token = default, OwnedFileRecord? preparedFile = null)
@@ -25,7 +28,8 @@ public sealed class FileBenchmarkEngine
             if (!existing)
             {
                 long start = Stopwatch.GetTimestamp(); progress?.Report(new("Preparing bounded benchmark file", null, 0, configuration.FileSizeBytes, 0));
-                await using var stream = Open(owned.FilePath, FileMode.Create, FileAccess.ReadWrite, configuration.SequentialBlockBytes, FileOptions.SequentialScan);
+                if (!await files.IsOwnedAsync(owned, token)) throw new IOException("Benchmark file identity changed before preparation; write refused.");
+                await using var stream = Open(owned.FilePath, FileMode.Open, FileAccess.ReadWrite, configuration.SequentialBlockBytes, FileOptions.SequentialScan);
                 stream.SetLength(configuration.FileSizeBytes);
                 if (configuration.HasReadWork)
                 {
@@ -38,7 +42,10 @@ public sealed class FileBenchmarkEngine
             }
             foreach (var op in Ordered(configuration.Operations))
             {
-                var result = await MeasureAsync(owned.FilePath, configuration, op, progress, token); results.Add(result);
+                if (!await files.IsOwnedAsync(owned, token)) throw new IOException("Benchmark file identity changed; further I/O refused.");
+                var result = FailOperationForTest == op
+                    ? BenchmarkOperationResult.Calculate(op, 0, 0, 1, null, BenchmarkOperationState.Failed, "Synthetic benchmark operation failure.")
+                    : await MeasureAsync(owned.FilePath, configuration, op, progress, token); results.Add(result);
                 if (result.State == BenchmarkOperationState.Cancelled) { completion = BenchmarkCompletion.Cancelled; reason = "Cancelled by user; partial measurement is incomplete."; break; }
                 if (result.State == BenchmarkOperationState.Failed) { completion = BenchmarkCompletion.Failed; reason = result.Error; break; }
             }

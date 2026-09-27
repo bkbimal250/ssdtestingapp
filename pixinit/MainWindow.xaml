@@ -108,13 +108,13 @@
       </TabItem>
     </TabControl>
     <StackPanel Grid.Row="3">
-    <Expander x:Name="BenchmarkExpander" Header="Performance / Benchmark · bounded filesystem file" Margin="22,0,22,8" AutomationProperties.Name="Performance benchmark">
+    <Expander x:Name="BenchmarkExpander" Header="Buffered filesystem benchmark — QD1; caching affects results." Margin="22,0,22,8" AutomationProperties.Name="Buffered filesystem performance benchmark">
       <Grid Margin="18,8,0,8" MaxHeight="390">
         <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel Grid.ColumnSpan="2">
           <DockPanel><Button DockPanel.Dock="Right" Content="Browse target…" Command="{Binding Benchmark.BrowseCommand}"/><TextBlock Text="Selected filesystem target" FontWeight="SemiBold"/><TextBlock Text="{Binding Benchmark.TargetDirectory}" Margin="12,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding Benchmark.TargetDirectory}"/></DockPanel>
-          <TextBlock Text="Writes use only a uniquely named PIXINIT temporary file. No raw disk, partition, volume, ATA or NVMe write command is used." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+          <TextBlock Text="Writes use only a uniquely named PIXINIT temporary file. Budgets are application data bytes, not physical NAND writes. No raw disk, partition, volume, ATA or NVMe write command is used." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         </StackPanel>
         <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8">
           <TextBlock Text="Preset" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding Benchmark.Presets}" SelectedItem="{Binding Benchmark.Preset}" Width="90" Margin="8,0,14,0"/>
@@ -125,9 +125,10 @@
         </WrapPanel>
         <StackPanel Grid.Row="3">
           <TextBlock Text="{Binding Benchmark.ConfigurationSummary}" FontWeight="SemiBold"/><TextBlock Text="{Binding Benchmark.ConsentStatus}" Style="{StaticResource Muted}"/>
-          <StackPanel Orientation="Horizontal" Margin="0,8,0,4"><Button Content="Start benchmark" Command="{Binding Benchmark.StartCommand}"/><Button Content="Cancel benchmark" Command="{Binding Benchmark.CancelCommand}" Margin="8,0,0,0"/><TextBlock Text="{Binding Benchmark.Status}" Margin="12,0,0,0" VerticalAlignment="Center" Style="{StaticResource Muted}"/></StackPanel>
+          <WrapPanel Margin="0,8,0,4"><Button Content="Start benchmark" Command="{Binding Benchmark.StartCommand}"/><Button Content="Cancel benchmark" Command="{Binding Benchmark.CancelCommand}" Margin="8,0,0,0"/><Button Content="Retry owned-file cleanup" Command="{Binding Benchmark.RetryCleanupCommand}" Margin="8,0,0,0"/><TextBlock Text="{Binding Benchmark.Status}" MaxWidth="460" Margin="12,6,0,0" VerticalAlignment="Center" Style="{StaticResource Muted}" ToolTip="{Binding Benchmark.Status}"/></WrapPanel>
           <ProgressBar Value="{Binding Benchmark.ProgressPercent}" Height="8"/><TextBlock Text="{Binding Benchmark.CurrentOperation}" FontWeight="SemiBold" Margin="0,4,0,0"/><TextBlock Text="{Binding Benchmark.ProgressDetail}" Style="{StaticResource Muted}"/>
           <Expander Header="Methodology and latest result"><TextBlock Text="{Binding Benchmark.ResultDetails}" TextWrapping="Wrap" Margin="0,6,12,0"/></Expander>
+          <UniformGrid Columns="2" Margin="0,6,0,0"><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Sequential Read" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Benchmark.SequentialReadResult}" FontWeight="SemiBold"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Sequential Write" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Benchmark.SequentialWriteResult}" FontWeight="SemiBold"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Random Read" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Benchmark.RandomReadResult}" FontWeight="SemiBold"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Random Write" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Benchmark.RandomWriteResult}" FontWeight="SemiBold"/></StackPanel></Border></UniformGrid>
         </StackPanel>
         <Grid Grid.Row="3" Grid.Column="1" Margin="14,0,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions><ListBox ItemsSource="{Binding Benchmark.Sessions}" SelectedItem="{Binding Benchmark.SelectedHistoryRow}" AutomationProperties.Name="Benchmark history"><ListBox.ItemTemplate><DataTemplate><StackPanel Margin="3"><TextBlock Text="{Binding StartedUtc}"/><TextBlock Text="{Binding Target}" TextTrimming="CharacterEllipsis"/><TextBlock><Run Text="{Binding Preset}"/><Run Text=" · "/><Run Text="{Binding CompletionState}"/></TextBlock></StackPanel></DataTemplate></ListBox.ItemTemplate></ListBox><ScrollViewer Grid.Column="1" Margin="10,0,0,0" VerticalScrollBarVisibility="Auto"><StackPanel><TextBlock Text="{Binding Benchmark.HistoryDetail}" TextWrapping="Wrap"/><Expander Header="Compatible comparison"><TextBlock Text="{Binding Benchmark.Comparison}" TextWrapping="Wrap"/></Expander></StackPanel></ScrollViewer></Grid>
         <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Load more" Command="{Binding Benchmark.LoadMoreCommand}"/><Button Content="Export benchmark TXT" Command="{Binding Benchmark.ExportTextCommand}" Margin="8,0,0,0"/><Button Content="Export benchmark JSON" Command="{Binding Benchmark.ExportJsonCommand}" Margin="8,0,0,0"/></StackPanel>
@@ -137,13 +138,13 @@
       <Grid Margin="18,8,0,8" MaxHeight="310">
         <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal" Grid.ColumnSpan="2" Margin="0,0,0,8">
+        <WrapPanel Grid.ColumnSpan="2" Margin="0,0,0,8">
           <TextBlock Text="Retention days:" VerticalAlignment="Center"/><TextBox Text="{Binding History.RetentionDays}" Width="48" Margin="8,0" AutomationProperties.Name="History retention days"/>
           <Button Content="Apply" Command="{Binding History.ApplyRetentionCommand}" Margin="0,0,12,0"/>
           <TextBlock Text="Protocol:" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding History.ProtocolFilters}" SelectedItem="{Binding History.ProtocolFilter}" Width="76" Margin="8,0"/>
           <Button Content="Filter" Command="{Binding History.ApplyFiltersCommand}" Margin="0,0,6,0"/><Button Content="This device" Command="{Binding History.FilterSelectedDeviceCommand}" Margin="0,0,6,0"/><Button Content="Clear" Command="{Binding History.ClearFiltersCommand}" Margin="0,0,8,0"/><Button Content="Load more" Command="{Binding History.LoadMoreCommand}"/>
           <TextBlock Text="{Binding History.Status}" Style="{StaticResource Muted}" Margin="12,0,0,0" VerticalAlignment="Center"/>
-        </StackPanel>
+        </WrapPanel>
         <ListBox Grid.Row="1" ItemsSource="{Binding History.Sessions}" SelectedItem="{Binding History.Selected}" AutomationProperties.Name="Historical sessions">
           <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="3"><TextBlock Text="{Binding ObservedAtUtc}"/><TextBlock Text="{Binding Model}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Protocol}" Style="{StaticResource Muted}"/><TextBlock Text="{Binding CompletionState, StringFormat=Session: {0}}" Style="{StaticResource Muted}"/><TextBlock><Run Text="{Binding Assessment}"/><Run Text=" · coverage "/><Run Text="{Binding Coverage}"/></TextBlock></StackPanel></DataTemplate></ListBox.ItemTemplate>
         </ListBox>

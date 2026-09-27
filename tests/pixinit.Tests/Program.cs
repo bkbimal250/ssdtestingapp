@@ -40,6 +40,8 @@ internal static partial class Program
             NvmeParserAndPolicyTests();
             NvmeIntegrationTests().GetAwaiter().GetResult();
             Phase5Tests().GetAwaiter().GetResult();
+            Phase6Tests().GetAwaiter().GetResult();
+            Phase7Tests().GetAwaiter().GetResult();
             if (args.Contains("--hardware")) HardwareTests();
             else if (args.Contains("--ui")) UiTests();
             Console.WriteLine($"All {passed} checks passed.");
@@ -127,6 +129,13 @@ internal static partial class Program
         Check(tab.IsKeyboardFocused, "Protocol tab accepts keyboard focus");
         tab.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next)); Pump();
         Check(Keyboard.FocusedElement is not null, "Keyboard focus traversal remains available");
+        var benchmark = (Expander)window.FindName("BenchmarkExpander"); benchmark.IsExpanded = true;
+        window.Width = 1366; window.Height = 768; Pump(); Capture(window, "phase7-responsive-1366x768.png");
+        Check(Equals(benchmark.Header, "Buffered filesystem benchmark — QD1; caching affects results."), "Benchmark limitation label is visible at the section boundary");
+        Check(Find<Button>(benchmark).Where(b => b.IsVisible).All(b => { var p = b.TransformToAncestor(window).Transform(new Point()); return b.ActualWidth > 0 && b.ActualHeight > 0 && p.X >= 0 && p.Y >= 0 && p.X + b.ActualWidth <= window.ActualWidth && p.Y + b.ActualHeight <= window.ActualHeight; }), "Visible benchmark controls remain inside the 1366 by 768 runtime window");
+        window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "phase7-responsive-desktop.png");
+        Check(Find<Button>(benchmark).Where(b => b.IsVisible).All(b => b.ActualWidth > 0 && b.ActualHeight > 0), "Benchmark controls retain accessible size on the desktop layout");
+        benchmark.IsExpanded = false;
         tabs.SelectedIndex = 0; window.Width = 1800; window.Height = 1000; Pump();
         Capture(window, "sata-desktop.png");
         tabs.SelectedIndex = 1; Pump(); Capture(window, "nvme-desktop.png");

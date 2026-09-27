@@ -6,6 +6,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\pixinit.ico</ApplicationIcon>
+    <AssemblyName>PIXINIT</AssemblyName>
+    <Product>PIXINIT Storage Diagnostics</Product>
+    <Company>PIXINIT</Company>
+    <Authors>PIXINIT</Authors>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

@@ -3,6 +3,7 @@ using pixinit.ViewModels.Shell;
 namespace pixinit;
 public partial class MainWindow : Window
 {
+    private bool closingAfterCleanup;
     public MainWindow(ShellViewModel viewModel)
     {
         InitializeComponent();
@@ -13,6 +14,14 @@ public partial class MainWindow : Window
         Width = Math.Min(Width, area.Width);
         Height = Math.Min(Height, area.Height);
         ContentRendered += async (_, _) => await viewModel.StartInitialScanAsync();
+        Closing += async (_, args) =>
+        {
+            if (closingAfterCleanup || !viewModel.Benchmark.Busy) return;
+            args.Cancel = true;
+            await viewModel.CloseAsync();
+            closingAfterCleanup = true;
+            Close();
+        };
         Closed += (_, _) => viewModel.Close();
     }
 }

@@ -11,7 +11,7 @@ public enum BenchmarkOperationState { Pending, Running, Completed, Cancelled, Fa
 
 public sealed record BenchmarkConfiguration(BenchmarkPreset Preset, BenchmarkOperation Operations, long FileSizeBytes,
     int SequentialBlockBytes, int RandomBlockBytes, int Iterations, int RandomOperationCount, int QueueDepth,
-    string IoMode = "Buffered asynchronous filesystem I/O; no write-through")
+    string IoMode = "Buffered asynchronous filesystem I/O; QD1; measured writes include FlushAsync to the OS; no write-through or durable Flush(true)")
 {
     public bool HasWriteWork => (Operations & (BenchmarkOperation.SequentialWrite | BenchmarkOperation.RandomWrite)) != 0;
     public bool HasReadWork => (Operations & (BenchmarkOperation.SequentialRead | BenchmarkOperation.RandomRead)) != 0;
@@ -43,7 +43,7 @@ public sealed record BenchmarkSession(Guid Id, DateTimeOffset StartedUtc, DateTi
     double CleanupSeconds, double TotalSeconds, bool WriteConsentRequired, bool WriteConsentGranted,
     BenchmarkTemperature? BeforeTemperature, BenchmarkTemperature? AfterTemperature,
     string? BenchmarkFilePath, bool CleanupSucceeded,
-    string Methodology = "Measured buffered filesystem I/O only. File creation, preparation, warm-up and cleanup are excluded from primary throughput.")
+    string Methodology = "Buffered filesystem benchmark — QD1; caching affects results. Measured writes include FlushAsync to the OS, not write-through or durable-media Flush(true). File creation, preparation, warm-up and cleanup are excluded from primary throughput. Sustained-write testing is not implemented.")
 {
     public const string ReportSchemaVersion = "pixinit.benchmark-report/1.0";
     public string Summary => $"{Completion} · {string.Join(" · ", Results.Select(r => $"{r.Operation}: {r.MegabytesPerSecond:F1} MB/s"))}";
@@ -58,7 +58,10 @@ public static class BenchmarkComparisons
     {
         if (previous.Completion != BenchmarkCompletion.Completed || current.Completion != BenchmarkCompletion.Completed ||
             !previous.Target.PhysicalIdentityReliable || !current.Target.PhysicalIdentityReliable ||
-            previous.Target.Device?.MatchKey != current.Target.Device?.MatchKey || previous.Target.VolumeRoot != current.Target.VolumeRoot ||
+            previous.PolicyVersion != current.PolicyVersion || previous.Target.Device?.MatchKey != current.Target.Device?.MatchKey ||
+            !string.Equals(previous.Target.VolumeRoot, current.Target.VolumeRoot, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(previous.Target.FileSystem, current.Target.FileSystem, StringComparison.OrdinalIgnoreCase) ||
+            previous.Configuration.Operations != current.Configuration.Operations ||
             previous.Configuration.FileSizeBytes != current.Configuration.FileSizeBytes || previous.Configuration.SequentialBlockBytes != current.Configuration.SequentialBlockBytes ||
             previous.Configuration.RandomBlockBytes != current.Configuration.RandomBlockBytes || previous.Configuration.Iterations != current.Configuration.Iterations ||
             previous.Configuration.RandomOperationCount != current.Configuration.RandomOperationCount || previous.Configuration.QueueDepth != current.Configuration.QueueDepth ||

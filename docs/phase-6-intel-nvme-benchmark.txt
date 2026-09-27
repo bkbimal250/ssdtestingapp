@@ -1,0 +1,25 @@
+PIXINIT benchmark report pixinit.benchmark-report/1.0
+Exported UTC: 2026-09-27T12:03:56.2640454+00:00
+Observed: 2026-09-27T12:03:55.6077559+00:00 – 2026-09-27T12:03:56.2468066+00:00
+Policy / app: benchmark-policy-v1 / 1.0.0.0
+Target: C:\Users\ADMIN\AppData\Local (NTFS; C:\)
+Device: INTEL SSDPEKNW512G8; serial: REDACTED
+Identity: Filesystem root C:\ maps to one discovered device in this session.
+Preset / operations: Quick / SequentialRead, SequentialWrite, RandomRead, RandomWrite
+File / blocks: 33554432 / seq 1048576 / random 4096 bytes
+Iterations / random operations / queue: 1 / 1024 / 1
+I/O: Buffered asynchronous filesystem I/O; no write-through
+Consent required/granted: True/True
+Completion: Completed; reason: None
+Temperature before: 38.85000000000002 C; source=NVMe SMART/Health log 02h · controller-wide; scope=Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable); observed=2026-09-27T12:03:54.5271529+00:00
+Temperature after: Unavailable
+Preparation: 33554432 bytes, 0.0551877 s; warm-up 0 s; cleanup 0.0059038 s; total 0.639076 s; cleanup succeeded True
+
+SequentialWrite | Completed | bytes=33554432 | operations=32 | measured=0.0320054s | 1048.3990826548018 MB/s | 999.8312784717577 MiB/s | IOPS=N/A | latency avg/min/max ms=0.753859375/0.557/1.626
+SequentialRead | Completed | bytes=33554432 | operations=32 | measured=0.0399857s | 839.160799985995 MB/s | 800.2861022815657 MiB/s | IOPS=N/A | latency avg/min/max ms=0.89431875/0.4797/4.0799
+RandomWrite | Completed | bytes=4194304 | operations=1024 | measured=0.2763236s | 15.178956846248385 MB/s | 14.475781294105897 MiB/s | IOPS=3705.8000112911095 | latency avg/min/max ms=0.2616501953125/0.1129/4.6849
+RandomRead | Completed | bytes=4194304 | operations=1024 | measured=0.2083386s | 20.132150259241445 MB/s | 19.199514636269996 MiB/s | IOPS=4915.075746885119 | latency avg/min/max ms=0.18821083984375/0.073/2.5961
+
+MB/s = bytes/second / 1,000,000; MiB/s = bytes/second / 1,048,576; IOPS = completed operations / measured seconds.
+Measured buffered filesystem I/O only. File creation, preparation, warm-up and cleanup are excluded from primary throughput.
+Buffered filesystem measurement; caches, filesystem, encryption, controller/SLC cache, thermal and power state, background activity, free space, firmware, test size and workload affect results. One run is not permanent capability.

@@ -1,0 +1,157 @@
+{
+  "ReportSchemaVersion": "pixinit.benchmark-report/1.0",
+  "ExportedAtUtc": "2026-09-27T12:03:56.2606269+00:00",
+  "Session": {
+    "Id": "0ec219ef-9cc5-46e6-b302-d8eb3454b6a4",
+    "StartedUtc": "2026-09-27T12:03:55.6077559+00:00",
+    "FinishedUtc": "2026-09-27T12:03:56.2468066+00:00",
+    "PolicyVersion": "benchmark-policy-v1",
+    "ApplicationVersion": "1.0.0.0",
+    "Target": {
+      "Directory": "C:\\Users\\ADMIN\\AppData\\Local",
+      "VolumeRoot": "C:\\",
+      "FileSystem": "NTFS",
+      "AvailableBytes": 93666598912,
+      "Device": {
+        "Model": "INTEL SSDPEKNW512G8",
+        "Serial": "REDACTED",
+        "Firmware": "004C",
+        "Protocol": "Nvme",
+        "Bus": "Nvme",
+        "NativeBusType": 17,
+        "CapacityBytes": 512110190592,
+        "IdentityEvidence": "PnP instance \u002B interface path hash; session only; not a persistent hardware identity",
+        "InstanceId": "SCSI\\DISK\u0026VEN_NVME\u0026PROD_INTEL_SSDPEKNW51\\5\u002638603C38\u00260\u0026000000",
+        "InterfacePath": "\\\\?\\scsi#disk\u0026ven_nvme\u0026prod_intel_ssdpeknw51#5\u002638603c38\u00260\u0026000000#{53f56307-b6bf-11d0-94f2-00a0c91efb8b}",
+        "MatchKey": "4B3313B8C832DCDF15D07BC86B22D01452C36BD0A775286FF1A40548E236A434",
+        "IdentityReliable": true
+      },
+      "MappingEvidence": "Filesystem root C:\\ maps to one discovered device in this session.",
+      "PhysicalIdentityReliable": true
+    },
+    "Configuration": {
+      "Preset": "Quick",
+      "Operations": "SequentialRead, SequentialWrite, RandomRead, RandomWrite",
+      "FileSizeBytes": 33554432,
+      "SequentialBlockBytes": 1048576,
+      "RandomBlockBytes": 4096,
+      "Iterations": 1,
+      "RandomOperationCount": 1024,
+      "QueueDepth": 1,
+      "IoMode": "Buffered asynchronous filesystem I/O; no write-through",
+      "HasWriteWork": true,
+      "HasReadWork": true,
+      "Signature": "Quick|SequentialRead, SequentialWrite, RandomRead, RandomWrite|33554432|1048576|4096|1|1024|1|Buffered asynchronous filesystem I/O; no write-through"
+    },
+    "Results": [
+      {
+        "Operation": "SequentialWrite",
+        "State": "Completed",
+        "BytesProcessed": 33554432,
+        "CompletedOperations": 32,
+        "MeasuredSeconds": 0.0320054,
+        "BytesPerSecond": 1048399082.6548018,
+        "MegabytesPerSecond": 1048.3990826548018,
+        "MebibytesPerSecond": 999.8312784717577,
+        "Iops": null,
+        "Latency": {
+          "AverageMilliseconds": 0.753859375,
+          "MinimumMilliseconds": 0.557,
+          "MaximumMilliseconds": 1.626,
+          "Samples": 32
+        },
+        "Error": null
+      },
+      {
+        "Operation": "SequentialRead",
+        "State": "Completed",
+        "BytesProcessed": 33554432,
+        "CompletedOperations": 32,
+        "MeasuredSeconds": 0.0399857,
+        "BytesPerSecond": 839160799.985995,
+        "MegabytesPerSecond": 839.160799985995,
+        "MebibytesPerSecond": 800.2861022815657,
+        "Iops": null,
+        "Latency": {
+          "AverageMilliseconds": 0.89431875,
+          "MinimumMilliseconds": 0.4797,
+          "MaximumMilliseconds": 4.0799,
+          "Samples": 32
+        },
+        "Error": null
+      },
+      {
+        "Operation": "RandomWrite",
+        "State": "Completed",
+        "BytesProcessed": 4194304,
+        "CompletedOperations": 1024,
+        "MeasuredSeconds": 0.2763236,
+        "BytesPerSecond": 15178956.846248385,
+        "MegabytesPerSecond": 15.178956846248385,
+        "MebibytesPerSecond": 14.475781294105897,
+        "Iops": 3705.8000112911095,
+        "Latency": {
+          "AverageMilliseconds": 0.2616501953125,
+          "MinimumMilliseconds": 0.1129,
+          "MaximumMilliseconds": 4.6849,
+          "Samples": 1024
+        },
+        "Error": null
+      },
+      {
+        "Operation": "RandomRead",
+        "State": "Completed",
+        "BytesProcessed": 4194304,
+        "CompletedOperations": 1024,
+        "MeasuredSeconds": 0.2083386,
+        "BytesPerSecond": 20132150.259241447,
+        "MegabytesPerSecond": 20.132150259241445,
+        "MebibytesPerSecond": 19.199514636269996,
+        "Iops": 4915.075746885119,
+        "Latency": {
+          "AverageMilliseconds": 0.18821083984375,
+          "MinimumMilliseconds": 0.073,
+          "MaximumMilliseconds": 2.5961,
+          "Samples": 1024
+        },
+        "Error": null
+      }
+    ],
+    "Completion": "Completed",
+    "Reason": null,
+    "PreparationBytesWritten": 33554432,
+    "PreparationSeconds": 0.0551877,
+    "WarmupSeconds": 0,
+    "CleanupSeconds": 0.0059038,
+    "TotalSeconds": 0.639076,
+    "WriteConsentRequired": true,
+    "WriteConsentGranted": true,
+    "BeforeTemperature": {
+      "Celsius": 38.85000000000002,
+      "Availability": "Available",
+      "Source": "NVMe SMART/Health log 02h \u00B7 controller-wide",
+      "Scope": "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)",
+      "ObservedAt": "2026-09-27T12:03:54.5271529+00:00"
+    },
+    "AfterTemperature": null,
+    "BenchmarkFilePath": "C:\\Users\\ADMIN\\AppData\\Local\\.pixinit-benchmark\\pixinit-benchmark-0ec219ef9cc546e6b302d8eb3454b6a4-3F4A6F3D8B3D3263BFA1C2B0B6971EAD.bin",
+    "CleanupSucceeded": true,
+    "Methodology": "Measured buffered filesystem I/O only. File creation, preparation, warm-up and cleanup are excluded from primary throughput.",
+    "Summary": "Completed \u00B7 SequentialWrite: 1048.4 MB/s \u00B7 SequentialRead: 839.2 MB/s \u00B7 RandomWrite: 15.2 MB/s \u00B7 RandomRead: 20.1 MB/s"
+  },
+  "LosslessIntegerValues": {
+    "fileSizeBytes": "33554432",
+    "preparationBytesWritten": "33554432",
+    "results[0].bytesProcessed": "33554432",
+    "results[0].completedOperations": "32",
+    "results[1].bytesProcessed": "33554432",
+    "results[1].completedOperations": "32",
+    "results[2].bytesProcessed": "4194304",
+    "results[2].completedOperations": "1024",
+    "results[3].bytesProcessed": "4194304",
+    "results[3].completedOperations": "1024"
+  },
+  "SerialRedacted": true,
+  "Units": "MB/s = bytes/second / 1,000,000; MiB/s = bytes/second / 1,048,576; IOPS = completed operations / measured seconds.",
+  "Limitations": "Buffered filesystem measurement; caches, filesystem, encryption, controller/SLC cache, thermal and power state, background activity, free space, firmware, test size and workload affect results. One run is not permanent capability."
+}
