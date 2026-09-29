@@ -63,6 +63,7 @@ internal static partial class Program
         Check(h.Warning == 0xA5 && NvmeHealthParser.Warnings(h.Warning).Contains("0xA0"), "Known and unknown Critical Warning bits are preserved");
         Check(Math.Abs(h.Celsius!.Value - 26.85) < .001 && h.Sensors[0] is > 36.84 and < 36.86 && h.Sensors[1] is null && h.Sensors[2] is null, "Kelvin conversion with unavailable sensors is correct");
         Check(h.Used == 123 && h.Spare == 98 && h.SpareThreshold == 10, "Percentage Used above 100 and spare values are preserved");
+        Check(h.RawSensorKelvin[1] == 0 && h.RawSensorKelvin[2] == ushort.MaxValue, "Not implemented and invalid sensor fields remain distinguishable");
         Check(h.Counters[0] > ulong.MaxValue && NvmeHealthParser.DataUnitBytes(h.Counters[1]) == 1_536_000, "Unsigned 128-bit counters and 512000-byte Data Units avoid truncation");
         var zero = NvmeHealthParser.Parse(new byte[512]);
         var zeroMap = NvmeResultMapper.Map(SyntheticNvme(), c, zero, null, [new(NvmeOperation.Health, NvmeOutcome.Success, "Synthetic zero", new byte[512], DateTimeOffset.UtcNow, "Synthetic scope")]);
@@ -90,7 +91,11 @@ internal static partial class Program
         Check(transport.Operations.SequenceEqual([NvmeOperation.Controller, NvmeOperation.Health, NvmeOperation.Errors]), "Provider dispatches only allowlisted controller, health and bounded error queries");
         Check(result.Responses.Single(r => r.Operation == NvmeOperation.Namespace).Outcome == NvmeOutcome.NotQueried && result.ControllerDetails!.Contains("No namespace ID guessed"), "Controller results retained while namespace mapping is unavailable");
         Check(result.Responses.Single(r => r.Operation == NvmeOperation.Namespace).Scope.Contains("unavailable"), "Withheld namespace result does not claim an established namespace zero");
+        Check(result.Responses.Single(r => r.Operation == NvmeOperation.Health).Scope.Contains("uncertain") && !result.Responses.Single(r => r.Operation == NvmeOperation.Health).Scope.Contains("namespace-wide"), "SMART scope stays uncertain without a numeric namespace ID");
         Check(result.PercentageUsed.Value == 123 && result.UsageCounters!.Contains("TiB") && result.UsageCounters.Contains("rounded up"), "Mapped usage preserves endurance consumed and conversion limits");
+        Check(result.IdentitySummary!.Contains("agree after trimming defined padding"), "Defined Identify padding does not create a false identity discrepancy");
+        var mismatch = NvmeResultMapper.Map(SyntheticNvme() with { Firmware = "DIFF" }, NvmeControllerParser.Parse(SyntheticController()), NvmeHealthParser.Parse(SyntheticHealth()), null, result.Responses);
+        Check(mismatch.IdentitySummary!.Contains("firmware") && !mismatch.IdentitySummary.Contains("model"), "Genuine identity discrepancies name only the differing fields");
         Check(result.WarningDetails.Contains("not an overall health guarantee") && result.Assessment is not null && result.Summary.Contains("Assessment"), "NVMe status remains distinct from the separately derived application assessment");
         transport.Fail = NvmeOperation.Errors; result = await provider.ReadAsync(SyntheticNvme(), default); Check(result.Temperature.Availability == Core.Diagnostics.Common.Availability.Available && result.ErrorDetails!.Contains("Unsupported"), "Optional error-log failure retains successful health");
         bool rejected = false; try { await new NvmeOperationCoordinator(provider, new StorageOperationGate()).ReadAsync(SyntheticSata(), default); } catch (InvalidOperationException) { rejected = true; } Check(rejected && transport.Operations.Count == 6, "SATA device rejected before NVMe transport dispatch");

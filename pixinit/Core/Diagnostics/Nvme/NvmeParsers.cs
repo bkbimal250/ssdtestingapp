@@ -15,7 +15,8 @@ public sealed record NvmeResponse(NvmeOperation Operation, NvmeOutcome Outcome, 
 }
 public sealed record NvmeController(string Model, string Serial, string Firmware, ushort Vendor, ushort SubsystemVendor, ushort Id, uint Version, uint Namespaces, byte LogAttributes, int ErrorSlots, ushort WarningKelvin, ushort CriticalKelvin, bool ThermalManagement);
 public sealed record NvmeNamespace(uint Id, ulong Size, ulong Capacity, ulong? Utilization, int Format, uint BlockBytes, ushort MetadataBytes, BigInteger SizeBytes, BigInteger CapacityBytes);
-public sealed record NvmeHealth(byte Warning, double? Celsius, byte? Spare, byte? SpareThreshold, byte Used, IReadOnlyList<BigInteger> Counters, uint WarningMinutes, uint CriticalMinutes, IReadOnlyList<double?> Sensors, IReadOnlyList<uint> ThermalCounters);
+public sealed record NvmeHealth(byte Warning, double? Celsius, byte? Spare, byte? SpareThreshold, byte Used, IReadOnlyList<BigInteger> Counters, uint WarningMinutes, uint CriticalMinutes, IReadOnlyList<double?> Sensors, IReadOnlyList<uint> ThermalCounters)
+{ public IReadOnlyList<ushort> RawSensorKelvin { get; init; } = []; }
 public sealed record NvmeError(ulong Count, ushort Queue, ushort Command, ushort Status, ushort Location, ulong Lba, uint Namespace);
 
 internal static class NvmeBytes
@@ -65,9 +66,10 @@ public static class NvmeHealthParser
     {
         NvmeBytes.Validate(b, 512); // Zero counters are legitimate; no blanket zero-payload rejection.
         var counters = Enumerable.Range(0, 10).Select(i => new BigInteger(b.AsSpan(32 + i * 16, 16), isUnsigned: true, isBigEndian: false)).ToArray();
+        var rawSensors = Enumerable.Range(0, 8).Select(i => NvmeBytes.U16(b, 200 + i * 2)).ToArray();
         return new(b[0], NvmeBytes.Temperature(NvmeBytes.U16(b, 1)), b[3] <= 100 ? b[3] : null, b[4] <= 100 ? b[4] : null, b[5], counters,
-            NvmeBytes.U32(b, 192), NvmeBytes.U32(b, 196), Enumerable.Range(0, 8).Select(i => NvmeBytes.Temperature(NvmeBytes.U16(b, 200 + i * 2))).ToArray(),
-            Enumerable.Range(0, 4).Select(i => NvmeBytes.U32(b, 216 + i * 4)).ToArray());
+            NvmeBytes.U32(b, 192), NvmeBytes.U32(b, 196), rawSensors.Select(NvmeBytes.Temperature).ToArray(),
+            Enumerable.Range(0, 4).Select(i => NvmeBytes.U32(b, 216 + i * 4)).ToArray()) { RawSensorKelvin = rawSensors };
     }
     public static string Warnings(byte value)
     {

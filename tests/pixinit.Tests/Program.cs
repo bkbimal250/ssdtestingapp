@@ -117,12 +117,16 @@ internal static partial class Program
         window.Show(); Pump();
         Check(window.IsVisible, "Actual WPF window starts");
         Console.WriteLine($"Host DPI: {VisualTreeHelper.GetDpi(window).PixelsPerInchX}; work area: {SystemParameters.WorkArea}");
-        var tabs = Find<TabControl>(window).Single();
+        var tabs = Find<TabControl>(window).First();
         Check(tabs.Items.Count == 2, "Both empty protocol tabs remain visible");
+        var sataSections = Find<pixinit.Views.Sata.SataView>(window).SelectMany(Find<TabControl>).Single();
+        Check(sataSections.Items.Count == 4, "SATA retains Overview, SMART, Details, and Raw Data navigation");
         window.Width = 1280; window.Height = 700; Pump();
         Capture(window, "sata-laptop.png");
         tabs.SelectedIndex = 1; Pump();
         Check(vm.ActiveTab == 1 && Find<pixinit.Views.Nvme.NvmeView>(window).Any(), "NVMe tab switches actual content");
+        var nvmeSections = Find<pixinit.Views.Nvme.NvmeView>(window).SelectMany(Find<TabControl>).Single();
+        Check(nvmeSections.Items.Count == 3, "NVMe provides Overview, Details, and Raw Data navigation");
         Capture(window, "nvme-laptop.png");
         var tab = (TabItem)tabs.Items[0];
         tab.Focus(); Pump();
@@ -136,6 +140,8 @@ internal static partial class Program
         window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "phase7-responsive-desktop.png");
         Check(Find<Button>(benchmark).Where(b => b.IsVisible).All(b => b.ActualWidth > 0 && b.ActualHeight > 0), "Benchmark controls retain accessible size on the desktop layout");
         benchmark.IsExpanded = false;
+        tabs.SelectedIndex = 1; window.Width = 1366; window.Height = 768; Pump(); Capture(window, "post-phase7-nvme-1366x768.png");
+        window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "post-phase7-nvme-desktop.png");
         tabs.SelectedIndex = 0; window.Width = 1800; window.Height = 1000; Pump();
         Capture(window, "sata-desktop.png");
         tabs.SelectedIndex = 1; Pump(); Capture(window, "nvme-desktop.png");
@@ -146,8 +152,11 @@ internal static partial class Program
         vm.Sata.Apply(new SataDiagnostics("test-table", Metric<bool>.Missing(), Metric<double>.Missing(), Metric<double>.Missing(),
             Enumerable.Range(0, 2000).Select(i => new SataSmartAttribute((byte)(i % 256), $"Test attribute {i}", null, null, null, "Unavailable", "Unavailable", "Test fixture only")).ToArray(), null, null, null));
         Pump();
+        sataSections = Find<pixinit.Views.Sata.SataView>(window).SelectMany(Find<TabControl>).Single(); sataSections.SelectedIndex = 1; Pump();
         var table = Find<DataGrid>(window).Single();
-        Check(table.ActualHeight > 100 && Find<DataGridRow>(table).Count() is > 0 and < 100, "SMART table keeps a bounded, virtualized viewport at minimum size");
+        var realizedRows = Find<DataGridRow>(table).Count();
+        Console.WriteLine($"SMART viewport: {table.ActualWidth} x {table.ActualHeight}; realized rows: {realizedRows}");
+        Check(table.ActualHeight > 100 && realizedRows is > 0 and < 100, "SMART table keeps a bounded, virtualized viewport at minimum size");
         tabs.SelectedIndex = 1; Pump();
         vm.Nvme.SetDevice(Drive("test-long", StorageProtocol.Nvme) with { Model = new string('M', 240), Serial = new string('S', 240) });
         Pump(); Capture(window, "test-only-long-identity.png");
@@ -166,7 +175,7 @@ internal static partial class Program
     }
     private static void Capture(Window window, string name)
     {
-        var content = (FrameworkElement)window.Content;
+        var content = (FrameworkElement)window;
         var bitmap = new RenderTargetBitmap((int)content.ActualWidth, (int)content.ActualHeight, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(content);
         Directory.CreateDirectory("docs/screenshots");

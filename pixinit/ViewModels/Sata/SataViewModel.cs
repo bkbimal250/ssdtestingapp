@@ -13,8 +13,10 @@ public sealed class SataViewModel : DeviceViewModel
     public string SmartExplanation => result?.StatusExplanation ?? "SMART RETURN STATUS is separate from overall health/QC assessment.";
     public string Discrepancies => result?.Discrepancies ?? "";
     public SataDiagnostics? Result => result;
-    public string Assessment => result?.Assessment is { } a ? $"{a.StateDisplay} · Coverage {a.Coverage} · Checklist {a.ChecklistDisplay}" : "Assessment unavailable";
-    public string AssessmentDetails => result?.Assessment is { } a ? $"Rule set: {a.RuleSetVersion}\nScope: {a.ProtocolScope}\nObserved: {a.ObservedAt:O}\n{a.Explanation}\n\nMissing evidence:\n{(string.IsNullOrWhiteSpace(a.Missing) ? "None" : a.Missing)}\n\n{Core.Assessment.HealthAssessment.Boundary}" : "No completed assessment.";
+    public string Assessment => result?.Assessment is { } a ? $"{a.StateDisplay} · Checklist {a.ChecklistDisplay}" : "Assessment unavailable";
+    public string Coverage => result?.Assessment is { } a ? $"Coverage {a.Coverage} for the named SATA diagnostic checklist; this is not coverage of all device capabilities." : "Checklist coverage unavailable";
+    public string ObservedLocal => result?.Assessment is { } a ? a.ObservedAt.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture) : "Not observed";
+    public string AssessmentDetails => result?.Assessment is { } a ? $"Rule set: {a.RuleSetVersion}\nScope: {a.ProtocolScope}\nObserved UTC: {a.ObservedAt:O}\n{a.Explanation}\n\nMissing evidence:\n{(string.IsNullOrWhiteSpace(a.Missing) ? "None for this checklist" : a.Missing)}\n\n{Core.Assessment.HealthAssessment.Boundary}" : "No completed assessment.";
     public string CommandDetails => result is null ? "Not queried" : string.Join("\n\n", result.Commands.Select(c =>
         $"{c.Operation} · {c.Outcome} · {c.ObservedAt:O}\n{c.Explanation}\nReturned task file: {Convert.ToHexString(c.Registers)}\nPayload ({c.Payload.Length} bytes):\n{Hex(c.Payload)}"));
     private static string Hex(byte[] bytes) => string.Join("\n", Enumerable.Range(0, (bytes.Length + 15) / 16).Select(i => $"{i * 16:X3}: {Convert.ToHexString(bytes.AsSpan(i * 16, Math.Min(16, bytes.Length - i * 16)))}"));
@@ -35,6 +37,6 @@ public sealed class SataViewModel : DeviceViewModel
     protected override void ClearResults() { result = null; SelectedAttribute = null; NotifyResults(); }
     private void NotifyResults()
     {
-        foreach (var name in new[] { nameof(Result), nameof(Assessment), nameof(AssessmentDetails), nameof(SmartStatus), nameof(Temperature), nameof(Wear), nameof(Attributes), nameof(Endurance), nameof(Ata), nameof(Interface), nameof(HasNoAttributes), nameof(SmartExplanation), nameof(Discrepancies), nameof(CommandDetails) }) Changed(name);
+        foreach (var name in new[] { nameof(Result), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(SmartStatus), nameof(Temperature), nameof(Wear), nameof(Attributes), nameof(Endurance), nameof(Ata), nameof(Interface), nameof(HasNoAttributes), nameof(SmartExplanation), nameof(Discrepancies), nameof(CommandDetails) }) Changed(name);
     }
 }

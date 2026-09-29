@@ -1,6 +1,6 @@
 # PIXINIT release checklist
 
-Status on 2026-09-27: **PARTIAL**.
+Status on 2026-09-28 after the focused UI/data-presentation pass: **PARTIAL**.
 
 ## Required for every package
 

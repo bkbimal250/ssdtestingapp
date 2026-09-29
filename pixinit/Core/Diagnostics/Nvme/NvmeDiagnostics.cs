@@ -15,4 +15,5 @@ public sealed record NvmeDiagnostics(string DeviceId, Metric<byte> CriticalWarni
     public string WarningDetails { get; init; } = "Not queried";
     public string Summary { get; init; } = "Not queried";
     public string SpareThreshold { get; init; } = "Unavailable";
+    public string IdentitySummary { get; init; } = "Identity comparison unavailable.";
 }

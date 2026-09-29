@@ -30,7 +30,7 @@ internal static class NvmeQueryPolicy
     internal static string Scope(NvmeOperation op, uint ns = 0) => op switch
     {
         NvmeOperation.Namespace => $"Namespace {ns} (established mapping)",
-        NvmeOperation.Health => "Selected device scope through Windows; controller/per-namespace scope resolved from Identify Controller",
+        NvmeOperation.Health => "Selected physical NVMe device through Windows; controller versus namespace scope is unresolved until a numeric NSID is established",
         _ => "Controller-wide (adapter query); not exclusive to the selected namespace"
     };
     internal static NvmeResponse Validate(NvmeOperation op, byte[] b, uint returned, bool success, int error, uint ns = 0)

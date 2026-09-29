@@ -33,9 +33,7 @@ public sealed class WindowsNvmeDiagnosticsProvider : INvmeDiagnosticsProvider
         {
             Read(NvmeOperation.Health, "Reading SMART/Health information", b => health = NvmeHealthParser.Parse(b));
             if (responses[^1].Operation == NvmeOperation.Health)
-                responses[^1] = responses[^1] with { Scope = controller is not null && (controller.LogAttributes & 1) != 0
-                    ? "Selected device/namespace through Windows (controller reports per-namespace SMART support; numeric NSID unavailable)"
-                    : "Controller-wide (per-namespace SMART support not reported); not exclusive to the selected namespace" };
+                responses[^1] = responses[^1] with { Scope = "Selected physical NVMe device through Windows; controller versus namespace scope is uncertain because no numeric NSID was established" };
             // Microsoft adapter log queries require 512-byte chunks, i.e. eight 64-byte entries.
             if (controller?.ErrorSlots >= 8) Read(NvmeOperation.Errors, "Reading bounded error information", b => errors = NvmeErrorParser.Parse(b, 8));
             else Missing(NvmeOperation.Errors, "Controller capacity for eight entries not established; Windows adapter query requires a 512-byte chunk. No over-capability request sent.");

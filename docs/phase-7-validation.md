@@ -31,10 +31,10 @@ Actual 125% and 150% scaling, mixed-DPI monitor movement and screen-reader testi
 `build/release.ps1` stops on Release/UI verification failure, publishes Windows x64 self-contained, rejects source/tests/symbols/samples/secrets, invokes Inno Setup 6, and records SHA-256. `installer/pixinit.iss` installs per user under `%LocalAppData%\Programs\PIXINIT`, requests no elevation, supplies version/publisher/icon, Start menu and optional desktop shortcuts, and includes uninstall. Writable data remains under `%LocalAppData%\PIXINIT`; no uninstall directive removes it.
 
 Installer: `artifacts/installer/PIXINIT-Setup-1.0.0-win-x64.exe`  
-SHA-256: `05E60AC831C3072078BB3E226935341FBBA7B42FA485DD6236C96D898768ED02`  
+Current post-Phase-7 rebuild SHA-256: `5C3FD8FE311A23B363EBA7BE1042021369BFFCE6462A8EABD8F262DDB5E1F2E2`
 Signature: **NotSigned**; no self-signed certificate was created.
 
-Silent per-user installation to a dedicated directory returned 0. The installed self-contained application remained running after startup without elevation. Silent uninstall returned 0, removed the installation directory, and left the pre-existing history database byte-for-byte unchanged (SHA-256 before/after matched). A clean external VM was unavailable, so cross-machine installation remains pending.
+The current post-Phase-7 package silently installed and uninstalled from a disposable directory with exit code 0. Its installed launch was not rerun because the follow-up pass prohibited new hardware commands. The earlier Phase 7 package launched without elevation and preserved the existing history database through uninstall. A clean external VM remains unavailable.
 
 ## Verification
 
