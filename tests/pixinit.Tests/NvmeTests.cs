@@ -94,6 +94,11 @@ internal static partial class Program
         Check(result.Responses.Single(r => r.Operation == NvmeOperation.Health).Scope.Contains("uncertain") && !result.Responses.Single(r => r.Operation == NvmeOperation.Health).Scope.Contains("namespace-wide"), "SMART scope stays uncertain without a numeric namespace ID");
         Check(result.PercentageUsed.Value == 123 && result.UsageCounters!.Contains("TiB") && result.UsageCounters.Contains("rounded up"), "Mapped usage preserves endurance consumed and conversion limits");
         Check(result.IdentitySummary!.Contains("agree after trimming defined padding"), "Defined Identify padding does not create a false identity discrepancy");
+        var display = new pixinit.ViewModels.Nvme.NvmeViewModel();
+        display.SetDevice(SyntheticNvme()); display.Apply(result);
+        Check(display.Serial == SyntheticNvme().Serial && display.Controller.Contains("Identify serial: SYNTHETIC-NVME"), "Full discovery and Identify serials are visible without masking");
+        var changedSerial = NvmeResultMapper.Map(SyntheticNvme() with { Serial = "SYNTHETIC- NVME" }, NvmeControllerParser.Parse(SyntheticController()), null, null, result.Responses);
+        Check(changedSerial.IdentitySummary!.Contains("serial"), "Internal serial characters are not normalized away during identity comparison");
         var mismatch = NvmeResultMapper.Map(SyntheticNvme() with { Firmware = "DIFF" }, NvmeControllerParser.Parse(SyntheticController()), NvmeHealthParser.Parse(SyntheticHealth()), null, result.Responses);
         Check(mismatch.IdentitySummary!.Contains("firmware") && !mismatch.IdentitySummary.Contains("model"), "Genuine identity discrepancies name only the differing fields");
         Check(result.WarningDetails.Contains("not an overall health guarantee") && result.Assessment is not null && result.Summary.Contains("Assessment"), "NVMe status remains distinct from the separately derived application assessment");

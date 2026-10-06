@@ -2,8 +2,8 @@
   <Grid Margin="18,14,18,8">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
     <Border Style="{StaticResource Card}" Padding="12" BorderBrush="{StaticResource SataBrush}" Margin="0,0,0,10"><DockPanel>
-      <Button DockPanel.Dock="Right" Content="Read SATA _Diagnostics" Command="{Binding DataContext.ReadSataCommand, RelativeSource={RelativeSource AncestorType=Window}}" AutomationProperties.Name="Read SATA diagnostics" ToolTip="Requires a selected confirmed SATA drive and no other storage operation."/>
-      <StackPanel><TextBlock Text="{Binding Model}" FontSize="21" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Model}"/><TextBlock Text="{Binding Serial, StringFormat=Serial: {0}}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Serial}"/><TextBlock Text="{Binding Connection}" Style="{StaticResource Muted}"/><TextBlock Text="{Binding DataContext.SataOperationStatus, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource Muted}"/></StackPanel>
+      <Button DockPanel.Dock="Right" VerticalAlignment="Top" Content="Read SATA _Diagnostics" Command="{Binding DataContext.ReadSataCommand, RelativeSource={RelativeSource AncestorType=Window}}" AutomationProperties.Name="Read SATA diagnostics" ToolTip="Requires a selected confirmed SATA drive and no other storage operation."/>
+      <StackPanel><TextBlock Text="{Binding Model}" TextWrapping="NoWrap" FontSize="21" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Model}"/><TextBlock Text="{Binding Serial, StringFormat=Serial: {0}}" Style="{StaticResource Muted}" TextWrapping="Wrap"/><TextBlock Text="{Binding Connection}" Style="{StaticResource Muted}"/><TextBlock Text="{Binding DataContext.SataOperationStatus, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource Muted}"/></StackPanel>
     </DockPanel></Border>
     <TabControl Grid.Row="1" AutomationProperties.Name="SATA sections">
       <TabItem Header="_Overview"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="2,12,2,4">

@@ -29,7 +29,7 @@ public sealed class HistoryViewModel : ObservableObject
     public string Comparison { get; private set; } = "Comparison unavailable until two compatible sessions exist.";
     public string Status { get; private set; } = "History not initialized";
     public int RetentionDays { get; set; } = 2;
-    public bool ExportRedactSerial { get; set; } = true;
+    public bool ExportRedactSerial { get; set; }
     public bool ExportIncludeRawPayloads { get; set; }
     public ActionCommand LoadMoreCommand { get; }
     public ActionCommand ApplyRetentionCommand { get; }

@@ -13,9 +13,9 @@ public static class SataResultMapper
         var smart = passed is bool value ? new Metric<bool>(value, "", Availability.Available, "ATA SMART RETURN STATUS", response!.ObservedAt,
             "Device-reported threshold status only; not an overall health or QC assessment") : Metric<bool>.Missing();
         string Flag(bool? value) => value is null ? "Unknown" : value.Value ? "Yes" : "No";
-        string Mask(string? value) => string.IsNullOrWhiteSpace(value) ? "Unavailable" : value.Length > 4 ? "•••• " + value[^4..] : "••••";
+        string Serial(string? value) => string.IsNullOrWhiteSpace(value) ? "Unavailable" : value;
         string ata = identity is null ? "ATA identity unavailable; see command outcomes." :
-            $"ATA model: {identity.Model ?? "Unavailable"}\nATA serial: {Mask(identity.Serial)}\nATA firmware: {identity.Firmware ?? "Unavailable"}\n" +
+            $"ATA model: {identity.Model ?? "Unavailable"}\nATA serial: {Serial(identity.Serial)}\nATA firmware: {identity.Firmware ?? "Unavailable"}\n" +
             $"ATA capacity: {identity.CapacityBytes?.ToString("N0") ?? "Unavailable"} bytes; logical sectors: {identity.LogicalSectors?.ToString() ?? "Unavailable"}\n" +
             $"Logical sector: {identity.LogicalSectorBytes?.ToString() ?? "Unavailable"} bytes; physical sector: {identity.PhysicalSectorBytes?.ToString() ?? "Unavailable"} bytes\n" +
             $"LBA: {Flag(identity.LbaSupported)}; LBA48: {Flag(identity.Lba48Supported)}\nATA versions: {identity.AtaVersions}\n" +

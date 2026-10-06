@@ -26,7 +26,7 @@ public static class NvmeResultMapper
             thermal += $"\nWarning composite temperature time: {(c?.WarningKelvin is > 0 and < 65535 ? h.WarningMinutes + " minutes" : "Unavailable: valid controller threshold required")}\nCritical composite temperature time: {(c?.CriticalKelvin is > 0 and < 65535 ? h.CriticalMinutes + " minutes" : "Unavailable: valid controller threshold required")}";
             thermal += c?.ThermalManagement == true ? $"\nThermal management T1/T2 transitions: {h.ThermalCounters[0]} / {h.ThermalCounters[1]}\nT1/T2 total time: {h.ThermalCounters[2]} / {h.ThermalCounters[3]} seconds\nA zero thermal-management counter means never occurred or field not implemented." : "\nThermal management counters: unavailable (support/revision not established)";
         }
-        static string Normal(string? value) => string.Join(" ", (value ?? "").Trim(' ', '\0').Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        static string Normal(string? value) => (value ?? "").Trim(' ', '\0');
         var differences = c is null ? [] : new[]
         {
             !string.Equals(Normal(device.Model), Normal(c.Model), StringComparison.Ordinal) ? "model" : null,
@@ -37,7 +37,7 @@ public static class NvmeResultMapper
             ? "Discovery and Identify Controller identity fields agree after trimming defined padding."
             : $"Identity discrepancy remains in: {string.Join(", ", differences)}. Discovery and Identify values are both retained.";
         string controller = c is null ? "Identify Controller unavailable; see per-query outcomes." :
-            $"Identify model: {c.Model}\nSerial: redacted (raw payload contains serial)\nFirmware: {c.Firmware}\nVID/SSVID: {c.Vendor:X4}/{c.SubsystemVendor:X4}; Controller ID: {c.Id}\nNVMe version: {(c.Version is 0 or uint.MaxValue ? "Not reported" : $"{c.Version >> 16}.{(c.Version >> 8) & 255}.{c.Version & 255}")}\nNamespace count: {c.Namespaces} (not physical SSD count)\nLPA capabilities: 0x{c.LogAttributes:X2}; Error slots: {c.ErrorSlots}\nWarning / critical threshold: {Temp(c.WarningKelvin)} / {Temp(c.CriticalKelvin)}\n" +
+            $"Identify model: {c.Model}\nIdentify serial: {c.Serial}\nFirmware: {c.Firmware}\nVID/SSVID: {c.Vendor:X4}/{c.SubsystemVendor:X4}; Controller ID: {c.Id}\nNVMe version: {(c.Version is 0 or uint.MaxValue ? "Not reported" : $"{c.Version >> 16}.{(c.Version >> 8) & 255}.{c.Version & 255}")}\nNamespace count: {c.Namespaces} (not physical SSD count)\nLPA capabilities: 0x{c.LogAttributes:X2}; Error slots: {c.ErrorSlots}\nWarning / critical threshold: {Temp(c.WarningKelvin)} / {Temp(c.CriticalKelvin)}\n" +
             identity + "\n";
         controller += "\nNamespace ID/details: unavailable; discovery does not establish a namespace mapping. No namespace ID guessed.\nPCIe generation/lane width: unavailable; NVMe version does not establish link speed.";
         var errorResponse = responses.FirstOrDefault(r => r.Operation == NvmeOperation.Errors);

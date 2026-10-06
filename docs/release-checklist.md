@@ -8,11 +8,11 @@ Status on 2026-09-28 after the focused UI/data-presentation pass: **PARTIAL**.
 - [x] Behavior and UI verification passes before packaging.
 - [x] Windows x64 self-contained publish is generated from `pixinit/pixinit.csproj`.
 - [x] Publish output excludes tests, source, symbols, samples and secrets.
-- [x] Manifest requests `asInvoker`; installer uses per-user `{localappdata}\Programs\PIXINIT`.
+- [x] Manifest requests `requireAdministrator`; installer requests administrator consent and targets `{autopf}\PIXINIT` (2026-10-06 user requirement).
 - [x] History/settings stay in `%LocalAppData%\PIXINIT` and are not removed by uninstall.
 - [x] Installer provides Start menu entry, optional desktop shortcut and uninstall entry.
 - [x] Installer SHA-256 is recorded in `artifacts/installer/SHA256SUMS.txt`.
-- [x] Silent install, installed launch and silent uninstall pass in a dedicated directory.
+- [ ] Revalidate elevated installation, launch, upgrade from the older per-user package and uninstall. Previous non-elevated verification does not qualify this changed permission model.
 - [x] Installer and application signature status is reported honestly as **unsigned**.
 - [ ] Code-sign application and installer with an organization-controlled certificate.
 - [ ] Verify signed upgrade/downgrade behavior and publisher identity.

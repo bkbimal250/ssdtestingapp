@@ -7,7 +7,7 @@ public abstract class DeviceViewModel : ObservableObject
 {
     public StorageDevice? Device { get; private set; }
     public string Model => Device?.DisplayName ?? "No drive selected";
-    public string Serial => string.IsNullOrWhiteSpace(Device?.Serial) ? "Unavailable" : Device.Serial.Length <= 4 ? "••••" : "•••• " + Device.Serial[^4..];
+    public string Serial => string.IsNullOrWhiteSpace(Device?.Serial) ? "Unavailable" : Device.Serial;
     public string Connection => Device is null ? "Connection unavailable" : $"{Device.Protocol} · Media: {Device.Media} · Reported bus: {Device.Bus} · Metadata access: {Device.Access}";
     public string DiscoveryDetails => Device is null ? "No discovery information available." :
         $"Physical-disk capacity: {(Device.CapacityBytes is long n ? $"{n:N0} bytes ({Device.CapacityDisplay}, decimal)" : "Unavailable")}\n" +
@@ -20,7 +20,7 @@ public abstract class DeviceViewModel : ObservableObject
     public void SetStale(bool value) { stale = value; Changed(nameof(DataStatus)); }
     public string DeviceId => Device?.Id ?? "Unavailable";
     private bool hasResult;
-    public string DataStatus => stale ? "Stale discovery information · Rescan to refresh" : Device is null ? "Awaiting discovery · No live readings" : hasResult ? "Provider result received · Availability shown per reading" : "Diagnostics not yet queried · No health readings";
+    public string DataStatus => stale ? "Stale discovery information · Rescan to refresh" : Device is null ? "No drive selected · No live readings" : hasResult ? "Provider result received · Availability shown per reading" : "Diagnostics not yet queried · No health readings";
 
     public void SetDevice(StorageDevice? device)
     {

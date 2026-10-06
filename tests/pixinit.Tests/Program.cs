@@ -94,6 +94,7 @@ internal static partial class Program
         Check(shell.ActiveTab == 1 && shell.State == ScanState.Completed, "Asynchronous completion preserves user tab choice");
         var reading = new SataDiagnostics("s1", Metric<bool>.Missing(), new(42, "°C", Availability.Available, "test", DateTimeOffset.UtcNow), Metric<double>.Missing(), [], null, null, null);
         shell.Sata.Apply(reading);
+        Check(shell.Sata.Serial == "Test serial", "SATA exposes the complete discovered serial");
         Check(shell.Sata.Temperature.Contains("42"), "Matching device accepts provider result");
         shell.SelectedSata = shell.SataDevices[1];
         shell.Sata.Apply(reading);

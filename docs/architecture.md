@@ -100,6 +100,6 @@ SQLite schema 2 adds benchmark sessions transactionally beside the Phase 5 table
 
 ## Phase 7 release boundary
 
-The executable manifest is `asInvoker`, PerMonitorV2-aware and x64-published self-contained. The Inno Setup package installs per user under LocalAppData; application data remains in its existing LocalAppData location and is outside installer ownership. `build/release.ps1` runs the Release/UI gate before publish, rejects development artifacts, builds the installer and records SHA-256. Signing is intentionally absent until an organization-controlled certificate is available.
+As requested on 2026-10-06, the executable manifest requests `requireAdministrator`; it remains PerMonitorV2-aware and x64-published self-contained. The installer requests administrator consent and targets Program Files; application data remains in its existing LocalAppData location and is outside installer ownership. `build/release.ps1` runs the Release/UI gate before publish, rejects development artifacts, builds the installer and records SHA-256. Signing is intentionally absent until an organization-controlled certificate is available.
 
 Benchmark ownership now combines an unpredictable manifest/name with the Windows volume serial and file index obtained from the opened handle. Target ancestors, the owned directory, manifest and data file must not be reparse points. The engine rechecks identity before preparation, each operation and deletion. See phase-7-validation.md.
