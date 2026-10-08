@@ -8,7 +8,7 @@ try {
 
     $publish = Join-Path $root 'artifacts\publish\win-x64'
     if (Test-Path $publish) { Remove-Item -LiteralPath $publish -Recurse -Force }
-    dotnet publish pixinit\pixinit.csproj -c Release -r win-x64 --self-contained true -o $publish -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false
+    dotnet publish pixinit\pixinit.csproj -c Release --artifacts-path artifacts/diagnostics-build -warnaserror -r win-x64 --self-contained true -o $publish -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false
     if ($LASTEXITCODE -ne 0) { throw 'Self-contained publish failed.' }
     if (-not (Test-Path (Join-Path $publish 'PIXINIT.exe'))) { throw 'Published PIXINIT.exe is missing.' }
 

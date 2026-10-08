@@ -1,30 +1,30 @@
 # PIXINIT
 
-Native C# / WPF storage diagnostics workspace. Phases 1–6 provide the UI, real read-only Windows disk discovery, explicit SATA/NVMe diagnostics, evidence-based checklists, SQLite history/reporting, and consent-gated bounded filesystem performance measurements. Physical SATA hardware support and broader controller coverage are not yet verified. No live values are fabricated and benchmark writes never target raw storage.
+Windows C#/.NET 10 WPF storage diagnostics with distinct SATA/NVMe views, SQLite history, reporting and safe bounded filesystem benchmarks.
 
-The existing `net10.0-windows` target and `pixinit` project identity are retained. Use a Windows machine with the .NET 10 SDK and desktop runtime.
+- Main tabs: Diagnostics, Benchmark, Other / Unidentified.
+- Diagnostic tabs: Overview, SMART, Details.
+- Full serial display and availability-aware evidence. Buffered QD1 measurements include caching effects.
+- Current release qualification: PARTIAL. Universal hardware and DPI compatibility are not established.
+
+## Build and package
 
 ```powershell
-dotnet build pixinit.slnx -c Release
-dotnet run --project tests/pixinit.Tests -c Release --no-build -- --ui
-dotnet run --project tests/pixinit.Tests -c Release --no-build -- --hardware
-dotnet run --project pixinit -c Release --no-build
-./build/release.ps1
+.\build\verify.ps1 -Ui
+.\build\release.ps1
 ```
 
-The tests are an executable harness, not a VSTest project. `dotnet test` alone does not execute them. Omit UI/hardware flags to run the behavior checks. `--ui` exercises isolated WPF fixtures; `--hardware` launches the production App, validates the Intel NVMe diagnostics, runs consent-approved bounded Quick filesystem benchmarks, reopens history, compares sessions, exports reports and captures production visuals. Run `build/verify.ps1 -Ui -Hardware` for full release verification.
+Requires .NET 10 SDK; packaging also requires Inno Setup 6. The release script runs verification itself, so running both commands is optional. Output: `artifacts/installer/PIXINIT-Setup-1.0.0-win-x64.exe`, with `SHA256SUMS.txt` beside it. The self-contained x64 installer is unsigned and requests administrator privileges.
 
-`build/release.ps1` gates packaging on the Release/UI suite, creates a self-contained Windows x64 publish, rejects development/test files, and compiles the per-user Inno Setup installer. The current installer is unsigned and must not be presented as signed or broadly production-qualified.
+The optional `-Hardware` verification mode includes physical reads and writes. Do not use it for layout checks.
 
-- [Architecture and selection policy](docs/architecture.md)
-- [Seven-phase roadmap](docs/roadmap.md)
-- [Compatibility assumptions](docs/compatibility.md)
-- [Phase 1 validation and manual checks](docs/phase-1-validation.md)
-- [Phase 2 validation, observations and limitations](docs/phase-2-validation.md)
-
-- [Phase 3 commands, references, validation and SATA test steps](docs/phase-3-validation.md)
-- [Phase 4 NVMe queries, real hardware results and validation](docs/phase-4-validation.md)
-- [Phase 5 assessment, history, export and validation](docs/phase-5-validation.md)
-- [Phase 6 bounded filesystem benchmark validation](docs/phase-6-validation.md)
-- [Phase 7 release hardening and installer validation](docs/phase-7-validation.md)
+- [Installation, upgrade, uninstall and DPI testing](docs/installation.md)
+- [Current release evidence](docs/release-2026-10-08.md)
+- [Compatibility matrix](docs/compatibility.md)
 - [Release checklist](docs/release-checklist.md)
+- [Project summary for AI](PROJECT_SUMMARY_FOR_AI.md)
+- [Architecture](docs/architecture.md)
+- [Storage overview and recent UI validation](docs/storage-overview-validation.md)
+- [SSD specification implementation](docs/ssd-specifications-validation.md)
+
+Historical phase reports in `docs` record earlier builds. Current release documentation takes precedence where behavior has changed.

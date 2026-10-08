@@ -1,6 +1,6 @@
 # PIXINIT release checklist
 
-Status on 2026-09-28 after the focused UI/data-presentation pass: **PARTIAL**.
+Status on 2026-10-08: **PARTIAL**. Current package evidence: [release validation](release-2026-10-08.md). Installation and DPI steps: [installation guide](installation.md).
 
 ## Required for every package
 
@@ -27,4 +27,5 @@ Status on 2026-09-28 after the focused UI/data-presentation pass: **PARTIAL**.
 - [ ] Screen-reader workflow and broader keyboard/accessibility audit.
 - [ ] Installer test in a clean Windows VM and enterprise software-control environments.
 - [ ] Define support, update, rollback and vulnerability-response policy.
-- [ ] Sustained-write test design, if ever requested; currently **NOT IMPLEMENTED** and existing limits must not be expanded implicitly.
+- [x] Bounded sustained filesystem testing is implemented with separate limits and overall/post-drop reporting.
+- [ ] Qualify real sustained workloads on additional hardware. SLC exhaustion and post-cache/NAND performance remain unproven.

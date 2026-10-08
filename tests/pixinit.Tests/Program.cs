@@ -125,13 +125,13 @@ internal static partial class Program
         var tabs = (TabControl)window.FindName("ProtocolTabs");
         Check(tabs.Items.Count == 2, "Both empty protocol tabs remain visible");
         var sataSections = Find<pixinit.Views.Sata.SataView>(window).SelectMany(Find<TabControl>).Single();
-        Check(sataSections.Items.Count == 4, "SATA retains Overview, SMART, Details, and Raw Data navigation");
+        Check(sataSections.Items.Count == 3, "SATA retains Overview, SMART, and Details navigation");
         window.Width = 1280; window.Height = 700; Pump();
         Capture(window, "sata-laptop.png");
         tabs.SelectedIndex = 1; Pump();
         Check(vm.ActiveTab == 1 && Find<pixinit.Views.Nvme.NvmeView>(window).Any(), "NVMe tab switches actual content");
         var nvmeSections = Find<pixinit.Views.Nvme.NvmeView>(window).SelectMany(Find<TabControl>).Single();
-        Check(nvmeSections.Items.Count == 4, "NVMe provides Overview, SMART, Details, and Raw Data navigation");
+        Check(nvmeSections.Items.Count == 3, "NVMe provides Overview, SMART, and Details navigation");
         Capture(window, "nvme-laptop.png");
         var tab = (TabItem)tabs.Items[0];
         tab.Focus(); Pump();
@@ -141,7 +141,7 @@ internal static partial class Program
         var benchmark = (TabItem)window.FindName("BenchmarkTab"); benchmark.IsSelected = true;
         window.Width = 1366; window.Height = 768; Pump(); Capture(window, "phase7-responsive-1366x768.png");
         Check(Find<TextBlock>(window).Any(t => t.Text.StartsWith("Buffered filesystem benchmark")), "Benchmark limitation stays visible in its tab");
-        Check(Find<TextBlock>(window).Count(t => new[] { "SEQ Read", "SEQ Write", "RND Read", "RND Write", "Sustained average" }.Contains(t.Text)) == 5 && Find<ComboBox>(window).Any(c => c.Items.Contains(1024)), "Five performance cards and the largest selectable file size render at laptop width");
+        Check(Find<TextBlock>(window).Count(t => new[] { "Sequential read", "Sequential write", "Random read", "Random write", "Sustained average" }.Contains(t.Text)) == 5 && Find<ComboBox>(window).Any(c => c.Items.Contains(1024)), "Five performance cards and the largest selectable file size render at laptop width");
         Check(Find<TextBlock>(window).Any(t => t.Text.StartsWith("Idle: Unavailable")) && Find<TextBlock>(window).Any(t => t.Text.StartsWith("Load: Unavailable")) && Find<TextBlock>(window).Any(t => t.Text == "Reference allowance unavailable"), "Missing diagnostic context displays explicit unavailable thermal and endurance fields");
         Check(Find<ScrollViewer>(window).Any(v => v.ScrollableHeight > 0) && Find<Button>(window).Any(b => Equals(b.Content, "Export benchmark JSON")), "Laptop benchmark overflow and export controls remain scrollable");
         window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "phase7-responsive-desktop.png");
@@ -180,6 +180,9 @@ internal static partial class Program
             [new(pixinit.Core.Diagnostics.Nvme.NvmeOperation.Controller, pixinit.Core.Diagnostics.Nvme.NvmeOutcome.Success, "Synthetic test evidence", controllerBytes, now, "Controller"),
              new(pixinit.Core.Diagnostics.Nvme.NvmeOperation.Health, pixinit.Core.Diagnostics.Nvme.NvmeOutcome.Success, "Synthetic test evidence", healthBytes, now, "Selected physical NVMe device through Windows; controller versus namespace scope is uncertain because no numeric NSID was established")]);
         detailFixture.Apply(fixtureResult); nvmeView.DataContext = detailFixture; Pump();
+        nvmeSections.SelectedIndex = 1; window.Width = 1366; window.Height = 768; Pump(); Capture(window, "smart-nvme-1366x768.png");
+        window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "smart-nvme-1800x1000.png");
+        nvmeSections.SelectedIndex = 2; Pump();
         Check(detailFixture.NotImplementedSensors == "Not Implemented 8" && detailFixture.ReportedSensors == "Reported 0" && detailFixture.ThermalRows[0].Value.Contains("26.85"), "Zero individual sensors remain not implemented while independent composite temperature is visible");
         Check(detailFixture.ExactCounterRows.Count == 8 && detailFixture.ExactCounterRows[0].Value.Length > 20, "Details preserves exact 128-bit usage counter values");
         Check(detailFixture.ControllerRows.Any(r => r.Value == "SYNTHETIC-NVME") && detailFixture.NamespaceDisclosure.Contains("No namespace ID guessed"), "Details retains full Identify serial and unmapped namespace disclosure");
@@ -192,8 +195,8 @@ internal static partial class Program
         detailFixture.SetDevice(null); Pump();
         Check(detailFixture.ExactCounterRows.All(r => r.Value.StartsWith("N/A")) && detailFixture.UnavailableSensors == "Unavailable 8", "Details device switch clears counter and thermal evidence without zero filling");
         nvmeView.DataContext = vm.Nvme; Pump();
-        nvmeSections.SelectedIndex = 3; Pump();
-        Check(Find<TextBox>(window).Any(t => t.IsReadOnly && t.Text == "Not queried"), "NVMe raw data stays read-only and honestly not queried");
+        nvmeSections.SelectedIndex = 2; Pump();
+        Check(!Find<TabItem>(window).Any(t => t.Header?.ToString()?.Contains("Raw Data", StringComparison.Ordinal) == true), "Raw Data is removed from diagnostic navigation");
         nvmeSections.SelectedIndex = 0; Pump();
         window.Width = 760; window.Height = 640; Pump();
         Check(window.ActualWidth == 760 && window.ActualHeight == 640, "Practical minimum window size runs");

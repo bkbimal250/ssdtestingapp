@@ -1,0 +1,21 @@
+PIXINIT 1.0.0 - Windows x64 - 2026-10-08
+
+1. Close PIXINIT.
+2. Open PowerShell in this folder.
+3. Verify file identity:
+   Get-FileHash '.\PIXINIT-Setup-1.0.0-win-x64.exe' -Algorithm SHA256
+   Compare with SHA256SUMS.txt.
+4. Run Setup:
+   & '.\PIXINIT-Setup-1.0.0-win-x64.exe'
+5. Approve the administrator prompt and follow Setup.
+
+Includes the .NET runtime. Default location: C:\Program Files\PIXINIT.
+The installer and application are unsigned and request administrator privileges.
+User data stays under %LocalAppData%\PIXINIT and is preserved by uninstall.
+Uninstall through Windows Settings > Apps > PIXINIT.
+WebView2 HTML presentation requires an installed WebView2 Runtime; native WPF fallback remains available.
+
+Build/test: 0 warnings/errors; 310 checks passed.
+Actual 125/150 percent and mixed DPI testing: NOT RUN.
+Current installer lifecycle in isolation: NOT RUN.
+Do not run a write benchmark merely to test the UI.

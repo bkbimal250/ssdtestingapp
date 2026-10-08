@@ -102,3 +102,22 @@ dotnet artifacts/diagnostics-build/bin/pixinit.Tests/release/pixinit.Tests.dll -
 - Release: 0 warnings/errors, all 310 checks passed. Windows x64 self-contained publish and Inno Setup compilation passed.
 - Installer: `artifacts/installer/PIXINIT-Setup-1.0.0-win-x64.exe`. SHA-256: `0EA1882ACEC0DC5D33DABBD2A84499AEC439C18104D69CB7DF6A3B48885C8021`. Supersedes previous installer hashes.
 - Unsigned. Not installed or distributed by this build task. Logs: artifacts/verification/current-installer-*.log.
+
+## Latest benchmark alignment pass - 2026-10-08
+- Benchmark configuration controls have consistent vertical alignment. Start/Cancel and status use fixed button columns with wrapping status text. Write-limit evidence remains available in an expandable section.
+- Five equal-width result cards stretch across the available width instead of leaving unused desktop space. Friendly workload headings, spacing, mono values and wrapped sustained text retain all existing bindings.
+- Idle/load labels and capture buttons use shared columns; TBW and thermal cards retain their independent evidence and reference disclosures. Samples now show seconds/MB/s explicitly and an honest empty-state message.
+- Only BenchmarkView.xaml and the corresponding existing UI-heading assertion changed. Benchmark engine, limits, gate, consent, providers, history, manifest and WebView2 setup unchanged. No physical benchmark run.
+- Release build: 0 warnings/errors; all 310 checks passed. Logs: artifacts/verification/benchmark-layout-build.log and benchmark-layout-tests.log. Actual WPF fixture captures inspected at 1366 x 768 and 1800 x 1000: docs/screenshots/phase7-responsive-1366x768.png and phase7-responsive-desktop.png. These are empty-state fixtures at 96 DPI, not measured hardware or proof of DPI support.
+- Installer was not rebuilt for this focused UI pass; the previous installer predates these changes.
+## Raw Data navigation removal - 2026-10-08
+- Removed Raw Data tab from SATA and NVMe views at user request. Both now expose Overview, SMART and Details only. Raw diagnostic models, history and exports are retained.
+- Release build passed with 0 warnings/errors; all 310 checks passed. Existing navigation checks updated; logs: artifacts/verification/remove-raw-tab-build.log and remove-raw-tab-tests.log.
+- Installer not rebuilt for this UI-only pass; existing installer predates this change.
+## SMART alignment and responsive layout - 2026-10-08
+- Balanced NVMe SMART columns across field, reported value and meaning; exact values use Consolas and wrap within the available width. White bordered table and consistent cell/header padding align the data.
+- Shared data grids now use automatic row height with a 36 px minimum so wrapped counters and explanations are not clipped. Keyboard selection and row/column virtualization remain enabled.
+- NVMe SMART uses a bounded table inside a vertically scrollable minimum-height layout, preventing the laptop header from consuming the entire data viewport. Warning/source evidence remains reachable. SATA keeps its distinct attribute columns, wider raw-value column, horizontal overflow and improved empty-state position.
+- Release: 0 warnings/errors; all 310 checks passed. Existing minimum-width SATA virtualization and keyboard checks passed. Logs: artifacts/verification/smart-layout-build.log and smart-layout-tests.log.
+- Actual WPF fixture captures: docs/screenshots/smart-nvme-1366x768.png and smart-nvme-1800x1000.png. Synthetic readings are explicitly labeled; no physical diagnostic or benchmark run. DPI scaling, screen reader and broader hardware compatibility remain unverified.
+- Manifest, WebView2, provider logic and measurement calculations unchanged. Existing installer predates this UI pass and was not rebuilt.
