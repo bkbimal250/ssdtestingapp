@@ -31,6 +31,7 @@ internal static partial class Program
     {
         try
         {
+            if (args.Contains("--web-ui")) { WebUiTests(); Console.WriteLine($"All {passed} WebView checks passed."); return 0; }
             SelectionTests();
             StateTests().GetAwaiter().GetResult();
             DiscoveryTests();
@@ -42,6 +43,9 @@ internal static partial class Program
             Phase5Tests().GetAwaiter().GetResult();
             Phase6Tests().GetAwaiter().GetResult();
             Phase7Tests().GetAwaiter().GetResult();
+            StorageSpecsTests().GetAwaiter().GetResult();
+            StorageOverviewTests().GetAwaiter().GetResult();
+            CompanyWorkflowTests().GetAwaiter().GetResult();
             if (args.Contains("--hardware")) HardwareTests();
             else if (args.Contains("--ui")) UiTests();
             Console.WriteLine($"All {passed} checks passed.");
@@ -118,7 +122,7 @@ internal static partial class Program
         window.Show(); Pump();
         Check(window.IsVisible, "Actual WPF window starts");
         Console.WriteLine($"Host DPI: {VisualTreeHelper.GetDpi(window).PixelsPerInchX}; work area: {SystemParameters.WorkArea}");
-        var tabs = Find<TabControl>(window).First();
+        var tabs = (TabControl)window.FindName("ProtocolTabs");
         Check(tabs.Items.Count == 2, "Both empty protocol tabs remain visible");
         var sataSections = Find<pixinit.Views.Sata.SataView>(window).SelectMany(Find<TabControl>).Single();
         Check(sataSections.Items.Count == 4, "SATA retains Overview, SMART, Details, and Raw Data navigation");
@@ -127,25 +131,70 @@ internal static partial class Program
         tabs.SelectedIndex = 1; Pump();
         Check(vm.ActiveTab == 1 && Find<pixinit.Views.Nvme.NvmeView>(window).Any(), "NVMe tab switches actual content");
         var nvmeSections = Find<pixinit.Views.Nvme.NvmeView>(window).SelectMany(Find<TabControl>).Single();
-        Check(nvmeSections.Items.Count == 3, "NVMe provides Overview, Details, and Raw Data navigation");
+        Check(nvmeSections.Items.Count == 4, "NVMe provides Overview, SMART, Details, and Raw Data navigation");
         Capture(window, "nvme-laptop.png");
         var tab = (TabItem)tabs.Items[0];
         tab.Focus(); Pump();
         Check(tab.IsKeyboardFocused, "Protocol tab accepts keyboard focus");
         tab.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next)); Pump();
         Check(Keyboard.FocusedElement is not null, "Keyboard focus traversal remains available");
-        var benchmark = (Expander)window.FindName("BenchmarkExpander"); benchmark.IsExpanded = true;
+        var benchmark = (TabItem)window.FindName("BenchmarkTab"); benchmark.IsSelected = true;
         window.Width = 1366; window.Height = 768; Pump(); Capture(window, "phase7-responsive-1366x768.png");
-        Check(Equals(benchmark.Header, "Buffered filesystem benchmark — QD1; caching affects results."), "Benchmark limitation label is visible at the section boundary");
-        Check(Find<Button>(benchmark).Where(b => b.IsVisible).All(b => { var p = b.TransformToAncestor(window).Transform(new Point()); return b.ActualWidth > 0 && b.ActualHeight > 0 && p.X >= 0 && p.Y >= 0 && p.X + b.ActualWidth <= window.ActualWidth && p.Y + b.ActualHeight <= window.ActualHeight; }), "Visible benchmark controls remain inside the 1366 by 768 runtime window");
+        Check(Find<TextBlock>(window).Any(t => t.Text.StartsWith("Buffered filesystem benchmark")), "Benchmark limitation stays visible in its tab");
+        Check(Find<TextBlock>(window).Count(t => new[] { "SEQ Read", "SEQ Write", "RND Read", "RND Write", "Sustained average" }.Contains(t.Text)) == 5 && Find<ComboBox>(window).Any(c => c.Items.Contains(1024)), "Five performance cards and the largest selectable file size render at laptop width");
+        Check(Find<TextBlock>(window).Any(t => t.Text.StartsWith("Idle: Unavailable")) && Find<TextBlock>(window).Any(t => t.Text.StartsWith("Load: Unavailable")) && Find<TextBlock>(window).Any(t => t.Text == "Reference allowance unavailable"), "Missing diagnostic context displays explicit unavailable thermal and endurance fields");
+        Check(Find<ScrollViewer>(window).Any(v => v.ScrollableHeight > 0) && Find<Button>(window).Any(b => Equals(b.Content, "Export benchmark JSON")), "Laptop benchmark overflow and export controls remain scrollable");
         window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "phase7-responsive-desktop.png");
-        Check(Find<Button>(benchmark).Where(b => b.IsVisible).All(b => b.ActualWidth > 0 && b.ActualHeight > 0), "Benchmark controls retain accessible size on the desktop layout");
-        benchmark.IsExpanded = false;
+        Check(Find<Button>(window).Where(b => b.IsVisible).All(b => b.ActualWidth > 0 && b.ActualHeight > 0), "Benchmark controls retain accessible size on the desktop layout");
+        var workspace = (TabControl)window.FindName("WorkspaceTabs");
+        vm.HistoryVisible = true; Pump(); Capture(window, "workspace-history-desktop.png");
+        Check(vm.HistoryVisible && Find<Button>(window).Any(b => Equals(b.Content, "Export History")), "Diagnostic history opens from a small export action inside Benchmark");
+        vm.HistoryVisible = false;
+        workspace.SelectedIndex = 0; Pump();
+        workspace.SelectedIndex = 2; Pump();
+        Check(workspace.Items.Count == 3 && Find<Expander>(window).Any(e => Equals(e.Header, "Other / Unidentified · 0")), "Other / Unidentified has its own third tab beside Benchmark");
+        Capture(window, "other-unidentified-tab-desktop.png");
+        var unidentifiedSection = (Expander)window.FindName("UnidentifiedDevicesSection");
+        unidentifiedSection.IsExpanded = true; Pump();
+        Check(!Find<pixinit.Views.Shared.FirstPageView>(unidentifiedSection).Any(), "Unidentified area never duplicates the main storage overview");
+        unidentifiedSection.IsExpanded = false;
+        ((TabControl)window.FindName("WorkspaceTabs")).SelectedIndex = 0;
         tabs.SelectedIndex = 1; window.Width = 1366; window.Height = 768; Pump(); Capture(window, "post-phase7-nvme-1366x768.png");
         window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "post-phase7-nvme-desktop.png");
         tabs.SelectedIndex = 0; window.Width = 1800; window.Height = 1000; Pump();
         Capture(window, "sata-desktop.png");
         tabs.SelectedIndex = 1; Pump(); Capture(window, "nvme-desktop.png");
+        nvmeSections = Find<pixinit.Views.Nvme.NvmeView>(window).SelectMany(Find<TabControl>).Single();
+        nvmeSections.SelectedIndex = 1; Pump(); Capture(window, "diagnostics-nvme-smart-desktop.png");
+        Check(Find<DataGrid>(window).Single().Items.Count == 15, "NVMe SMART shows health fields and all ten exact counters without ATA interpretation");
+        nvmeSections.SelectedIndex = 2; Pump(); Capture(window, "diagnostics-nvme-details-desktop.png");
+        var nvmeView = Find<pixinit.Views.Nvme.NvmeView>(window).Single();
+        var detailFixture = new pixinit.ViewModels.Nvme.NvmeViewModel();
+        var fixtureDevice = SyntheticNvme(); detailFixture.SetDevice(fixtureDevice);
+        var controllerBytes = SyntheticController(); var healthBytes = SyntheticHealth();
+        Array.Clear(healthBytes, 200, 16); healthBytes[0] = 0;
+        var now = DateTimeOffset.UtcNow;
+        var fixtureResult = pixinit.Core.Diagnostics.Nvme.NvmeResultMapper.Map(fixtureDevice,
+            pixinit.Core.Diagnostics.Nvme.NvmeControllerParser.Parse(controllerBytes),
+            pixinit.Core.Diagnostics.Nvme.NvmeHealthParser.Parse(healthBytes), [],
+            [new(pixinit.Core.Diagnostics.Nvme.NvmeOperation.Controller, pixinit.Core.Diagnostics.Nvme.NvmeOutcome.Success, "Synthetic test evidence", controllerBytes, now, "Controller"),
+             new(pixinit.Core.Diagnostics.Nvme.NvmeOperation.Health, pixinit.Core.Diagnostics.Nvme.NvmeOutcome.Success, "Synthetic test evidence", healthBytes, now, "Selected physical NVMe device through Windows; controller versus namespace scope is uncertain because no numeric NSID was established")]);
+        detailFixture.Apply(fixtureResult); nvmeView.DataContext = detailFixture; Pump();
+        Check(detailFixture.NotImplementedSensors == "Not Implemented 8" && detailFixture.ReportedSensors == "Reported 0" && detailFixture.ThermalRows[0].Value.Contains("26.85"), "Zero individual sensors remain not implemented while independent composite temperature is visible");
+        Check(detailFixture.ExactCounterRows.Count == 8 && detailFixture.ExactCounterRows[0].Value.Length > 20, "Details preserves exact 128-bit usage counter values");
+        Check(detailFixture.ControllerRows.Any(r => r.Value == "SYNTHETIC-NVME") && detailFixture.NamespaceDisclosure.Contains("No namespace ID guessed"), "Details retains full Identify serial and unmapped namespace disclosure");
+        Check(Find<Expander>((DependencyObject)((TabItem)nvmeSections.Items[2]).Content).All(e => e.IsExpanded), "Every Details expander starts expanded");
+        window.Width = 1366; window.Height = 768; Pump(); Capture(window, "details-nvme-1366x768.png");
+        window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "details-nvme-1800x1000.png");
+        var detailsScroll = (ScrollViewer)((TabItem)nvmeSections.Items[2]).Content;
+        var thermalHeading = Find<TextBlock>(nvmeView).First(t => t.Text == "Thermal information");
+        detailsScroll.ScrollToVerticalOffset(thermalHeading.TransformToAncestor((Visual)detailsScroll.Content).Transform(new Point()).Y - 12); Pump(); Capture(window, "details-nvme-thermal-desktop.png");
+        detailFixture.SetDevice(null); Pump();
+        Check(detailFixture.ExactCounterRows.All(r => r.Value.StartsWith("N/A")) && detailFixture.UnavailableSensors == "Unavailable 8", "Details device switch clears counter and thermal evidence without zero filling");
+        nvmeView.DataContext = vm.Nvme; Pump();
+        nvmeSections.SelectedIndex = 3; Pump();
+        Check(Find<TextBox>(window).Any(t => t.IsReadOnly && t.Text == "Not queried"), "NVMe raw data stays read-only and honestly not queried");
+        nvmeSections.SelectedIndex = 0; Pump();
         window.Width = 760; window.Height = 640; Pump();
         Check(window.ActualWidth == 760 && window.ActualHeight == 640, "Practical minimum window size runs");
         tabs.SelectedIndex = 0; Pump(); Capture(window, "sata-minimum.png");

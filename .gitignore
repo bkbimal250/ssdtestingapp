@@ -77,3 +77,6 @@ node_modules/
 package-lock.json
 
 # End of .gitignore
+
+# Isolated build used while the normal application is running
+artifacts/diagnostics-build/

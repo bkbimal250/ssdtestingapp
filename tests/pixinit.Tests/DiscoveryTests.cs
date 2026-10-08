@@ -57,6 +57,19 @@ internal static partial class Program
         var first = WindowsDiskDiscovery.ReadDevice("path1", "instance1", default, Query);
         var second = WindowsDiskDiscovery.ReadDevice("path2", "instance2", default, Query);
         Check(first.Protocol == StorageProtocol.Sata && first.Media == StorageMedia.Unknown && first.Capabilities == DiagnosticCapabilities.Identity, "SATA does not imply SSD or diagnostic support");
+        byte[] SeekQuery(uint code, byte[]? input, int size)
+        {
+            if (code == StorageNative.QueryProperty && input is not null && BinaryPrimitives.ReadUInt32LittleEndian(input) == 7)
+            { var bytes = new byte[12]; Put(bytes, 0, 12); Put(bytes, 4, 12); return bytes; }
+            return Query(code, input, size);
+        }
+        var seekDevice = WindowsDiskDiscovery.ReadDevice("seek", null, default, SeekQuery);
+        Check(seekDevice.IncursSeekPenalty == false && seekDevice.Media == StorageMedia.Unknown, "Seek evidence is retained without inventing SSD classification");
+        var mediaVm = new pixinit.ViewModels.Nvme.NvmeViewModel();
+        mediaVm.SetDevice(seekDevice);
+        Check(mediaVm.MediaDisplay == "Not confirmed" && mediaVm.MediaEvidence.Contains("no seek penalty") && !seekDevice.Limitations.Contains("not yet queried"), "Media uncertainty explains evidence without stale diagnostic wording");
+        mediaVm.SetDevice(null);
+        Check(mediaVm.MediaEvidence.StartsWith("Select a drive"), "Media evidence clears on deselection");
         byte[] BadCapacity(uint code, byte[]? input, int size) => code == StorageNative.GeometryEx ? [1, 2] : Query(code, input, size);
         var incomplete = WindowsDiskDiscovery.ReadDevice("incomplete", null, default, BadCapacity);
         Check(incomplete.Protocol == StorageProtocol.Sata && incomplete.CapacityBytes is null && incomplete.Model == first.Model && incomplete.Limitations.Contains("capacity"), "Invalid capacity preserves a classified device with other real identity fields");
@@ -106,7 +119,7 @@ internal static partial class Program
         controlled.Completion = new(TaskCreationOptions.RunContinuationsAsynchronously); pending = vm.ScanAsync(); controlled.Completion.SetResult([]); await pending;
         Check(vm.SataEmpty && !vm.IsStale && vm.Sata.Device is null, "Empty successful enumeration clears previous device and stale status");
         controlled.Completion = new(TaskCreationOptions.RunContinuationsAsynchronously); pending = vm.ScanAsync(); controlled.Completion.SetResult([Drive("usb", StorageProtocol.Unknown)]); await pending;
-        Check(vm.OtherExpanded && vm.OperationStatus.Contains("Other"), "Unknown-only discovery directs attention to Other / Unidentified");
+        Check(vm.OtherExpanded && vm.OperationStatus.Contains("Unidentified"), "Unknown-only discovery directs attention to Unidentified devices in Diagnostics");
         var once = new CountedDiscovery(); vm = new(new DiscoveryCoordinator(once));
         await vm.StartInitialScanAsync(); await vm.StartInitialScanAsync();
         Check(once.Calls == 1, "Shell visibility triggers at most one automatic discovery");

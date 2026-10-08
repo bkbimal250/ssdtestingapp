@@ -16,7 +16,7 @@ public partial class MainWindow : Window
         ContentRendered += async (_, _) => await viewModel.StartInitialScanAsync();
         Closing += async (_, args) =>
         {
-            if (closingAfterCleanup || !viewModel.Benchmark.Busy) return;
+            if (closingAfterCleanup || (!viewModel.Benchmark.Busy && !viewModel.Benchmark.PreparingDiagnostics && !viewModel.ThermalCaptureBusy && !viewModel.SataBusy && !viewModel.NvmeBusy)) return;
             args.Cancel = true;
             await viewModel.CloseAsync();
             closingAfterCleanup = true;

@@ -18,6 +18,7 @@ public sealed record StorageDevice(string Id, string Model, string? Serial,
     public string? Firmware { get; init; }
     public long? CapacityBytes { get; init; }
     public StorageMedia Media { get; init; }
+    public bool? IncursSeekPenalty { get; init; }
     public bool? Removable { get; init; }
     public uint? NativeBusType { get; init; }
     public IReadOnlyList<string> MountPoints { get; init; } = [];

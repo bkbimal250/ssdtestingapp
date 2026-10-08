@@ -29,12 +29,12 @@ internal static partial class Program
         Check(random.Iops == 1000 && random.Latency is { AverageMilliseconds: 1, MinimumMilliseconds: .25, MaximumMilliseconds: 3, Samples: 2000 }, "Random IOPS and latency derive from completed operations and monotonic measured time");
         Check(Stopwatch.IsHighResolution && Stopwatch.GetTimestamp() > 0, "Benchmark duration source is the high-resolution monotonic Stopwatch clock");
         Check(BenchmarkPolicy.Quick.FileSizeBytes == 32 * BenchmarkPolicy.MiB && BenchmarkPolicy.Standard.FileSizeBytes == 128 * BenchmarkPolicy.MiB, "Quick and Standard presets have fixed documented file sizes");
-        Check(BenchmarkPolicy.Quick.MaximumWriteBytes() == 68 * BenchmarkPolicy.MiB && BenchmarkPolicy.Standard.MaximumWriteBytes() == 448 * BenchmarkPolicy.MiB, "Preset maximum write amounts are known before execution");
-        bool rejected = false; try { BenchmarkPolicy.Validate(BenchmarkPolicy.Quick with { FileSizeBytes = 513 * BenchmarkPolicy.MiB }, long.MaxValue); } catch (InvalidOperationException) { rejected = true; }
-        Check(rejected, "Custom test files above 512 MiB are rejected");
-        rejected = false; try { BenchmarkPolicy.Validate(BenchmarkPolicy.Standard with { FileSizeBytes = 512 * BenchmarkPolicy.MiB }, long.MaxValue); } catch (InvalidOperationException) { rejected = true; }
-        Check(rejected, "Custom workloads above the 1 GiB write allowance are rejected");
-        Check(BenchmarkPolicy.SafetyMargin(5_000_000_000) == BenchmarkPolicy.MinimumSafetyMarginBytes && BenchmarkPolicy.SafetyMargin(20_000_000_000) == 2_000_000_000, "Free-space reserve is the greater of 1 GiB or ten percent");
+        Check(BenchmarkPolicy.Quick.MaximumWriteBytes() == 64 * BenchmarkPolicy.MiB + 1000L * 4096 && BenchmarkPolicy.Standard.MaximumWriteBytes() == 448 * BenchmarkPolicy.MiB, "Preset maximum write amounts are known before execution");
+        bool rejected = false; try { BenchmarkPolicy.Validate(BenchmarkPolicy.Quick with { FileSizeBytes = 1025 * BenchmarkPolicy.MiB }, long.MaxValue); } catch (InvalidOperationException) { rejected = true; }
+        Check(rejected, "Custom test files above 1024 MiB are rejected");
+        rejected = false; try { BenchmarkPolicy.Validate(BenchmarkPolicy.Standard with { FileSizeBytes = 1024 * BenchmarkPolicy.MiB }, long.MaxValue); } catch (InvalidOperationException) { rejected = true; }
+        Check(rejected, "Custom workloads above the 3 GiB write allowance are rejected");
+        Check(BenchmarkPolicy.SafetyMargin(5_000_000_000) == BenchmarkPolicy.MinimumSafetyMarginBytes && BenchmarkPolicy.SafetyMargin(40_000_000_000) == 4_000_000_000 && BenchmarkPolicy.SafetyMargin(5_000_000_000, sustainedOnly: true) == 1_073_741_824, "Ordinary reserve is at least 3 GiB or ten percent; sustained-only retains one GiB reserve");
         rejected = false; try { BenchmarkPolicy.Validate(BenchmarkPolicy.Quick, BenchmarkPolicy.Quick.FileSizeBytes + BenchmarkPolicy.MinimumSafetyMarginBytes - 1); } catch (InvalidOperationException) { rejected = true; }
         Check(rejected, "Insufficient free space is rejected before file creation");
 
@@ -73,7 +73,7 @@ internal static partial class Program
             manager.BeforeDeleteForTest = null; var orphan = (await manager.FindOrphansAsync(root)).Single(r => r.FilePath == cleanupFailed.BenchmarkFilePath);
             var recoveryVm = new BenchmarkViewModel(engine, null, () => [], () => null, () => { }) { TargetDirectory = root }; await recoveryVm.InitializeAsync();
             Check(recoveryVm.OwnedFilesNeedingCleanup.Single().FilePath == orphan.FilePath && recoveryVm.RetryCleanupCommand.CanExecute(null), "Restart surfaces the exact verified owned file and enables safe cleanup retry");
-            recoveryVm.RetryCleanupCommand.Execute(null); for (int i = 0; i < 100 && File.Exists(orphan.FilePath); i++) await Task.Delay(10);
+            recoveryVm.RetryCleanupCommand.Execute(null); for (int i = 0; i < 100 && !recoveryVm.Status.StartsWith("Cleaned ", StringComparison.Ordinal); i++) await Task.Delay(10);
             Check(!File.Exists(orphan.FilePath), "Interrupted owned-file manifest supports safe restart discovery and retry cleanup");
             string unrelated = Path.Combine(root, "unrelated.bin"); await File.WriteAllTextAsync(unrelated, "keep"); string ownedDirectory = Path.Combine(root, OwnedBenchmarkFileManager.DirectoryName); Directory.CreateDirectory(ownedDirectory);
             var redirected = new OwnedFileRecord(Guid.NewGuid(), "BAD", unrelated, unrelated + ".owner.json", DateTimeOffset.UtcNow, 0, 0); await File.WriteAllTextAsync(Path.Combine(ownedDirectory, "redirect.owner.json"), JsonSerializer.Serialize(redirected));

@@ -42,4 +42,4 @@ Name: "{group}\PIXINIT"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\PIXINIT"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch PIXINIT"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch PIXINIT"; Flags: nowait postinstall skipifsilent runascurrentuser

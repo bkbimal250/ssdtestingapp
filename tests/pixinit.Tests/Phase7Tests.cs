@@ -15,7 +15,7 @@ internal static partial class Program
     {
         var config = BenchmarkPolicy.Quick;
         Check(config.IoMode.Contains("Buffered") && config.IoMode.Contains("QD1") && config.IoMode.Contains("FlushAsync") && config.IoMode.Contains("no write-through"), "Benchmark configuration persists buffering, queue and flush semantics");
-        Check(new BenchmarkSession(Guid.NewGuid(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, BenchmarkPolicy.Version, "1", null!, config, [], BenchmarkCompletion.Completed, null, 0, 0, 0, 0, 0, true, true, null, null, null, true).Methodology.Contains("Sustained-write testing is not implemented"), "Methodology explicitly excludes sustained-write testing");
+        Check(new BenchmarkSession(Guid.NewGuid(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, BenchmarkPolicy.Version, "1", null!, config, [], BenchmarkCompletion.Completed, null, 0, 0, 0, 0, 0, true, true, null, null, null, true).Methodology.Contains("throughput drop does not prove SLC exhaustion"), "Methodology distinguishes bounded sustained writes from proven SLC exhaustion");
 
         string root = Path.Combine(Path.GetTempPath(), "pixinit-phase7-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
         try
@@ -49,7 +49,7 @@ internal static partial class Program
 
             string txt = Path.Combine(root, "report.txt"), json = Path.Combine(root, "report.json"); await BenchmarkReportExporter.ExportTextAsync(newer, txt); await BenchmarkReportExporter.ExportJsonAsync(newer, json);
             string report = await File.ReadAllTextAsync(txt), structured = await File.ReadAllTextAsync(json);
-            Check(report.Contains(BenchmarkViewModel.BenchmarkLabel) && report.Contains("not physical NAND writes") && report.Contains("Sustained-write testing is not implemented"), "TXT labels cached QD1 results and excludes NAND and sustained-speed claims");
+            Check(report.Contains(BenchmarkViewModel.BenchmarkLabel) && report.Contains("not physical NAND writes") && report.Contains("throughput drop does not prove SLC-cache exhaustion"), "TXT labels cached QD1 results and excludes NAND and sustained-speed claims");
             Check(structured.Contains("FlushAsync") && structured.Contains("VolumeRoot") && structured.Contains("Methodology"), "JSON persists flush behavior, target volume and timing methodology");
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }

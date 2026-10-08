@@ -7,6 +7,9 @@ public sealed record NvmeDiagnostics(string DeviceId, Metric<byte> CriticalWarni
     Metric<double> Temperature, Metric<double> AvailableSpare, Metric<double> PercentageUsed,
     string? UsageCounters, string? ThermalDetails, string? ControllerDetails, string? ErrorDetails)
 {
+    public TbwInfo? Tbw { get; init; }
+    public ThermalInfo? Thermal { get; init; }
+    public double? PowerOnHours { get; init; }
     public HealthAssessment? Assessment { get; init; }
     public NvmeController? Controller { get; init; }
     public NvmeHealth? Health { get; init; }

@@ -147,10 +147,11 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
             var bytes = QueryProperty(Query, 7);
             int size = DescriptorParser.DescriptorSize(bytes, 9);
             if (size > bytes.Length || bytes[8] > 1) throw new InvalidDataException("Invalid seek-penalty descriptor.");
+            device = device with { IncursSeekPenalty = bytes[8] == 1 };
             issues.Add(bytes[8] == 1 ? "Windows reports seek penalty; media type remains unconfirmed." : "Windows reports no seek penalty; this alone does not establish SSD media.");
         });
         if (device.Protocol == StorageProtocol.Unknown) issues.Add("Underlying protocol not established from reported bus; no pass-through probing performed.");
-        issues.Add("Media type unknown; diagnostics not yet queried.");
+        issues.Add("Media type not confirmed by discovery; protocol and seek behavior do not establish SSD/HDD type.");
         return device with { Access = denied ? DeviceAccess.AccessDenied : issues.Count > 2 ? DeviceAccess.Limited : DeviceAccess.Available, Limitations = string.Join(" ", issues) };
     }
 

@@ -1,0 +1,6 @@
+<UserControl x:Class="pixinit.Views.Shared.ThermalCaptureView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<StackPanel><TextBlock Text="Temperature observations" FontWeight="SemiBold" Margin="0,0,0,6"/><TextBlock Text="{Binding CurrentTempDisplay}" TextWrapping="Wrap" FontFamily="Consolas"/>
+<WrapPanel Margin="0,6"><TextBlock Text="{Binding IdleTempDisplay}" TextWrapping="Wrap" MaxWidth="460" VerticalAlignment="Center"/><Button Content="Capture Idle" Command="{Binding CaptureIdleCommand}" Padding="8,3" Margin="8,0"/></WrapPanel>
+<WrapPanel><TextBlock Text="{Binding LoadTempDisplay}" TextWrapping="Wrap" MaxWidth="460" VerticalAlignment="Center"/><Button Content="Capture Load" Command="{Binding CaptureLoadCommand}" Padding="8,3" Margin="8,0"/><Button Content="Cancel capture" Command="{Binding CancelThermalCaptureCommand}" Padding="8,3"/></WrapPanel>
+<TextBlock Text="{Binding ThermalCaptureStatus}" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6"/><TextBlock Text="Green below 75 C; Yellow 75 to 80 C; Red above 80 C. Display classification is separate from evidence assessment." Foreground="#64748B" TextWrapping="Wrap"/>
+</StackPanel></UserControl>

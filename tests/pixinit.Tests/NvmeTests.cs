@@ -97,6 +97,9 @@ internal static partial class Program
         var display = new pixinit.ViewModels.Nvme.NvmeViewModel();
         display.SetDevice(SyntheticNvme()); display.Apply(result);
         Check(display.Serial == SyntheticNvme().Serial && display.Controller.Contains("Identify serial: SYNTHETIC-NVME"), "Full discovery and Identify serials are visible without masking");
+        Check(display.SmartReadings.Single(r => r.Field == "Data units read").Value == result.Health!.Counters[0].ToString(System.Globalization.CultureInfo.InvariantCulture), "SMART table retains exact 128-bit counter text");
+        display.SetDevice(SyntheticNvme("different-device"));
+        Check(display.SmartReadings.Single(r => r.Field == "Data units read").Value == "Unavailable", "Switching device clears SMART table values instead of retaining stale counters");
         var changedSerial = NvmeResultMapper.Map(SyntheticNvme() with { Serial = "SYNTHETIC- NVME" }, NvmeControllerParser.Parse(SyntheticController()), null, null, result.Responses);
         Check(changedSerial.IdentitySummary!.Contains("serial"), "Internal serial characters are not normalized away during identity comparison");
         var mismatch = NvmeResultMapper.Map(SyntheticNvme() with { Firmware = "DIFF" }, NvmeControllerParser.Parse(SyntheticController()), NvmeHealthParser.Parse(SyntheticHealth()), null, result.Responses);

@@ -123,8 +123,8 @@ internal static partial class Program
                     var actualTarget = BenchmarkTargetResolver.Resolve(vm.Benchmark.TargetDirectory, devices);
                     Check(actualTarget.PhysicalIdentityReliable && actualTarget.Device?.Model == vm.SelectedNvme.Model, "Actual benchmark filesystem maps to the selected Intel NVMe with reliable session evidence");
                     Check(vm.Benchmark.Configuration().MaximumWriteBytes() == 68 * BenchmarkPolicy.MiB, "Actual Quick workload is bounded to 68 MiB maximum writes per completed run");
-                    if (window.FindName("HistoryExpander") is Expander oldHistory) oldHistory.IsExpanded = false;
-                    if (window.FindName("BenchmarkExpander") is Expander benchmarkExpander) benchmarkExpander.IsExpanded = true;
+                    if (window.FindName("HistoryTab") is TabItem oldHistory) oldHistory.IsSelected = false;
+                    if (window.FindName("BenchmarkTab") is TabItem benchmarkExpander) benchmarkExpander.IsSelected = true;
                     window.Width = 1280; window.Height = 700; Pump(); Capture(window, "phase6-benchmark-config-laptop.png");
 
                     bool activeCaptured = false, cancellationRequested = false;
@@ -168,7 +168,7 @@ internal static partial class Program
                 Pump(); Capture(window, "phase5-assessment-laptop.png");
                 window.Width = 1800; window.Height = 1000;
                 if (Find<pixinit.Views.Nvme.NvmeView>(window).Single().Content is ScrollViewer desktopScroll) desktopScroll.ScrollToTop();
-                if (window.FindName("HistoryExpander") is Expander history) history.IsExpanded = true;
+                if (window.FindName("HistoryTab") is TabItem history) history.IsSelected = true;
                 Pump(); Capture(window, "phase5-history-desktop.png");
                 int tab = vm.ActiveTab;
                 int ticks = 0;

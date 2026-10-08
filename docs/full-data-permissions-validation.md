@@ -14,3 +14,11 @@ Validation: final Release build 0 warnings/0 errors; 246 total applicable checks
 Prior installer hashes and non-elevated launch results in older reports are historical. The current artifact hash is in artifacts/installer/SHA256SUMS.txt. No GitHub push or distribution performed in this update.
 
 Final installer SHA-256: 87BE2465DFD3F2A6C40EB9760B6DFD733D23C8D3526B4BB7988D48A5185D20C5. Inno compilation succeeded with the final Program Files/admin configuration.
+
+## Installer launch correction — 2026-10-06
+
+User reported CreateProcess error 740 from the installer Finish-page launch. Inno Setup defaults postinstall entries to the original, normally unelevated user. That conflicts with PIXINIT's requireAdministrator manifest.
+
+The Launch PIXINIT entry now explicitly uses runascurrentuser, inheriting the already-elevated administrator installer token. Admin installation, normal launch UAC, diagnostics and benchmark safeguards remain unchanged. Reference: https://jrsoftware.org/ishelp/topic_runsection.htm (runascurrentuser / runasoriginaluser).
+
+Targeted checks confirm admin Setup, requireAdministrator app and runascurrentuser launch agree. Installer compilation is rerun; application binaries are unchanged, so application suites were not repeated. Interactive Finish-page launch after UAC is NOT RUN in this correction. The current installer SHA-256 is recorded in artifacts/installer/SHA256SUMS.txt. Existing installations can launch PIXINIT through the Start menu or Run as administrator; this error concerns the final launch step, not evidence of a failed file installation.

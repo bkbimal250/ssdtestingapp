@@ -43,6 +43,11 @@ public static class SnapshotFactory
             metrics.Add(M(prefix + ".threshold", a.Threshold?.ToString(), "normalized", a.Threshold is null ? "Unavailable" : "Available", "Matched by unique attribute ID", assessment.ObservedAt, "Selected SATA device"));
             metrics.Add(M(prefix + ".raw_le48", a.RawValue, "encoding only; no units", "Available", a.InterpretationSource, assessment.ObservedAt, "Selected SATA device"));
         }
+        if (r.Tbw is { } tbw)
+        {
+            metrics.Add(M("sata.host_written_tb", tbw.WrittenTB?.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "TB (decimal host writes)", tbw.WrittenTB is null ? "Unavailable" : tbw.InterpretationVerified ? "Available" : "Unverified interpretation", tbw.Source, assessment.ObservedAt, assessment.ProtocolScope));
+            metrics.Add(M("sata.rated_tb_reference", tbw.RatedTB.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "TB", "Unverified reference", "600 TB requested reference; manufacturer rating not verified", assessment.ObservedAt, assessment.ProtocolScope));
+        }
         return New(appSession, d, "Sata", "Selected SATA device", queries, metrics, assessment, SataParserVersion);
     }
     public static DiagnosticSnapshot Create(Guid appSession, StorageDevice d, NvmeDiagnostics r)
@@ -63,6 +68,11 @@ public static class SnapshotFactory
             string[] names = ["data_units_read", "data_units_written", "host_read_commands", "host_write_commands", "controller_busy_minutes", "power_cycles", "power_on_hours", "unsafe_shutdowns", "media_errors", "error_log_lifetime_count"];
             for (int i = 0; i < names.Length; i++) metrics.Add(M("nvme." + names[i], h.Counters[i].ToString(), i == 4 ? "minutes" : i == 6 ? "hours" : "count", "Available", "NVMe SMART/Health 02h · unsigned 128-bit decimal text", assessment.ObservedAt, assessment.ProtocolScope));
             for (int i = 0; i < h.Sensors.Count; i++) metrics.Add(M($"nvme.temperature_sensor_{i + 1}", h.Sensors[i]?.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "°C", h.Sensors[i] is null ? "Unavailable" : "Available", "NVMe SMART/Health 02h", assessment.ObservedAt, assessment.ProtocolScope));
+        }
+        if (r.Tbw is { } tbw)
+        {
+            metrics.Add(M("nvme.host_written_tb", tbw.WrittenTB?.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "TB (decimal host writes)", tbw.WrittenTB is null ? "Unavailable" : tbw.InterpretationVerified ? "Available" : "Unverified interpretation", tbw.Source, assessment.ObservedAt, assessment.ProtocolScope));
+            metrics.Add(M("nvme.rated_tb_reference", tbw.RatedTB.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "TB", "Unverified reference", "600 TB requested reference; manufacturer rating not verified", assessment.ObservedAt, assessment.ProtocolScope));
         }
         return New(appSession, d, "Nvme", assessment.ProtocolScope, queries, metrics, assessment, NvmeParserVersion);
     }

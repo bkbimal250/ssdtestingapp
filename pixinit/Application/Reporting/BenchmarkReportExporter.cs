@@ -8,17 +8,17 @@ namespace pixinit.Application.Reporting;
 
 public sealed record BenchmarkReport(string ReportSchemaVersion, DateTimeOffset ExportedAtUtc, BenchmarkSession Session,
     IReadOnlyDictionary<string, string> LosslessIntegerValues, bool SerialRedacted,
-    string Units = "MB/s = bytes/second / 1,000,000; MiB/s = bytes/second / 1,048,576; IOPS = completed operations / measured seconds.",
-    string Limitations = "Buffered filesystem benchmark — QD1; caching affects results. No uncached device speed, durable-write latency, sustained post-cache performance, or physical NAND writes are claimed. Sustained-write testing is not implemented. Filesystem, encryption, controller/SLC cache, thermal and power state, background activity, free space, firmware, test size and workload affect results. One run is not permanent capability.");
+    string Units = "MB/s = bytes/second / 1,000,000; MiB/s = bytes/second / 1,048,576; End-to-end IOPS = completed operations / measured seconds. RndReadIOPS/RndWriteIOPS = 1000 / mean I/O latency in ms; RndReadMBs/RndWriteMBs are MiB/s estimates from that latency.",
+    string Limitations = "Buffered filesystem benchmark - QD1; caching affects results. No uncached device speed, durable-write latency, sustained post-cache performance, or physical NAND writes are claimed. Sustained writes are bounded buffered filesystem samples; a throughput drop does not prove SLC-cache exhaustion. Filesystem, encryption, controller/SLC cache, thermal and power state, background activity, free space, firmware, test size and workload affect results. One run is not permanent capability.");
 
-public static class BenchmarkReportExporter
+public static partial class BenchmarkReportExporter
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
     public static async Task ExportJsonAsync(BenchmarkSession session, string path, bool redactSerial = true, CancellationToken token = default) => await Write(path, JsonSerializer.Serialize(Build(session, redactSerial), Json), token);
     public static async Task ExportTextAsync(BenchmarkSession source, string path, bool redactSerial = true, CancellationToken token = default)
     {
         var report = Build(source, redactSerial); var s = report.Session; var b = new StringBuilder();
-        b.AppendLine($"PIXINIT benchmark report {report.ReportSchemaVersion}").AppendLine("Buffered filesystem benchmark — QD1; caching affects results.").AppendLine($"Exported UTC: {report.ExportedAtUtc:O}").AppendLine($"Observed: {s.StartedUtc:O} – {s.FinishedUtc:O}")
+        b.AppendLine($"PIXINIT benchmark report {report.ReportSchemaVersion}").AppendLine("Buffered filesystem benchmark - QD1; caching affects results.").AppendLine($"Exported UTC: {report.ExportedAtUtc:O}").AppendLine($"Observed: {s.StartedUtc:O} - {s.FinishedUtc:O}")
             .AppendLine($"Policy / app: {s.PolicyVersion} / {s.ApplicationVersion}").AppendLine($"Target: {s.Target.Directory} ({s.Target.FileSystem}; {s.Target.VolumeRoot})")
             .AppendLine($"Device: {s.Target.Device?.Model ?? "Uncertain"}; serial: {s.Target.Device?.Serial ?? "Unavailable"}").AppendLine($"Identity: {s.Target.MappingEvidence}")
             .AppendLine($"Preset / operations: {s.Configuration.Preset} / {s.Configuration.Operations}").AppendLine($"File / blocks: {s.Configuration.FileSizeBytes} / seq {s.Configuration.SequentialBlockBytes} / random {s.Configuration.RandomBlockBytes} bytes")
@@ -27,6 +27,15 @@ public static class BenchmarkReportExporter
             .AppendLine($"Temperature before: {Temperature(s.BeforeTemperature)}").AppendLine($"Temperature after: {Temperature(s.AfterTemperature)}")
             .AppendLine($"Preparation: {s.PreparationBytesWritten} bytes, {s.PreparationSeconds:R} s; warm-up {s.WarmupSeconds:R} s; cleanup {s.CleanupSeconds:R} s; total {s.TotalSeconds:R} s; cleanup succeeded {s.CleanupSucceeded}").AppendLine();
         foreach (var r in s.Results) b.AppendLine($"{r.Operation} | {r.State} | bytes={r.BytesProcessed} | operations={r.CompletedOperations} | measured={r.MeasuredSeconds:R}s | {r.MegabytesPerSecond:R} MB/s | {r.MebibytesPerSecond:R} MiB/s | IOPS={r.Iops?.ToString("R") ?? "N/A"} | latency avg/min/max ms={r.Latency?.AverageMilliseconds:R}/{r.Latency?.MinimumMilliseconds:R}/{r.Latency?.MaximumMilliseconds:R}");
+        b.AppendLine($"Random latency-derived rates: read {s.RndReadIOPS:R} IOPS / {s.RndReadMBs:R} MiB/s; write {s.RndWriteIOPS:R} IOPS / {s.RndWriteMBs:R} MiB/s")
+            .AppendLine($"Sustained: {s.SustainedStatus}; overall {s.SustainedOverallMBs:R} MB/s; post-drop {s.SustainedPostDropMBs:R} MB/s; drop second {s.ThroughputDropSecond}; cap {s.Configuration.SustainedMaximumWriteBytes} application bytes; duration {s.Configuration.SustainedDurationSeconds}s")
+            .AppendLine($"TBW context: written {s.Tbw?.WrittenTB:R} TB; reference {s.Tbw?.RatedTB:R} TB; remaining {s.Tbw?.RemainingPercent:R}%; rating verified {s.Tbw?.RatingVerified}; source {s.Tbw?.Source ?? "Unavailable"}")
+            .AppendLine($"Thermal snapshot: {s.Thermal?.ObservedC:R} C; idle {s.Thermal?.IdleC:R}; load {s.Thermal?.LoadC:R}; state {s.Thermal?.State}; source {s.Thermal?.Source ?? "Unavailable"}");
+        b.AppendLine($"Safety policy: {s.SafetyPolicy ?? "Unavailable"}")
+            .AppendLine($"Consumed endurance: {s.PercentageUsed?.ToString("R") ?? "N/A"} percent")
+            .AppendLine($"Idle observed UTC: {s.Thermal?.IdleTempObservedAt:O}; condition: {s.Thermal?.IdleCondition ?? "Not captured"}")
+            .AppendLine($"Load observed UTC: {s.Thermal?.LoadTempObservedAt:O}; condition: {s.Thermal?.LoadCondition ?? "Not captured"}");
+        foreach (var sample in s.SustainedSamples) b.AppendLine($"Sustained sample: {sample.sec}s; {sample.mbs:R} MB/s; {sample.Bytes} bytes; interval {sample.IntervalSeconds:R}s");
         b.AppendLine().AppendLine(report.Units).AppendLine(s.Methodology).AppendLine(report.Limitations);
         await Write(path, b.ToString(), token);
     }

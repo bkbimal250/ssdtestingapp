@@ -14,7 +14,7 @@ public partial class App : System.Windows.Application
         base.OnStartup(e);
         var operations = new StorageOperationGate();
         MainWindow = new MainWindow(new ShellViewModel(new DiscoveryCoordinator(new WindowsDiskDiscovery(), operations),
-            new SataOperationCoordinator(new WindowsSataDiagnosticsProvider(), operations), new NvmeOperationCoordinator(new WindowsNvmeDiagnosticsProvider(), operations), new SqliteHistoryStore()));
+            new SataOperationCoordinator(new WindowsSataDiagnosticsProvider(), operations), new NvmeOperationCoordinator(new WindowsNvmeDiagnosticsProvider(), operations), new SqliteHistoryStore(), operationGate: operations));
         MainWindow.Show();
     }
 }

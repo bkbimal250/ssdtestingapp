@@ -47,6 +47,10 @@ public static class NvmeResultMapper
         string stamp = health is null ? "" : $"\nSource: NVMe SMART/Health 02h · {health.Scope}\nObserved: {health.ObservedAt:O}";
         return new(device.Id, MakeMetric<byte>(h?.Warning), MakeMetric<double>(h?.Celsius, "°C"), MakeMetric<double>(h?.Spare, "%"), MakeMetric<double>(h?.Used, "%"), usage + stamp, thermal + stamp, controller, errorText)
         {
+            Tbw = new(h is not null && health?.Succeeded == true && h.Counters.Count > 1 && h.Counters[1] > 0 ? (double)NvmeHealthParser.DataUnitBytes(h.Counters[1]) / 1e12 : null,
+                Source: $"NVMe Data Units Written, 1000 x 512 bytes; rounded up; {health?.Scope}"),
+            Thermal = ThermalInfo.FromMetric(MakeMetric<double>(h?.Celsius, "°C")),
+            PowerOnHours = h is not null && health?.Succeeded == true && h.Counters.Count > 6 ? (double)h.Counters[6] : null,
             Controller = c, Health = h, ErrorEntries = errors,
             Responses = responses.ToArray(), WarningDetails = h is null ? $"{health?.Outcome}: {health?.Explanation}" : NvmeHealthParser.Warnings(h.Warning) + stamp,
             SpareThreshold = h?.SpareThreshold is byte threshold ? $"{threshold}%" : "Unavailable",

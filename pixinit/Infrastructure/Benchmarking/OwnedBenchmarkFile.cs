@@ -40,7 +40,7 @@ public sealed class OwnedBenchmarkFileManager
             !string.Equals(Path.GetFileName(Path.GetDirectoryName(file)), DirectoryName, StringComparison.Ordinal)) return false;
         try
         {
-            EnsureNotReparsePoint(Path.GetDirectoryName(file)!); EnsureNotReparsePoint(file); EnsureNotReparsePoint(manifest);
+            EnsureNoReparsePoints(Path.GetDirectoryName(file)!); EnsureNotReparsePoint(file); EnsureNotReparsePoint(manifest);
             var saved = JsonSerializer.Deserialize<OwnedFileRecord>(await File.ReadAllTextAsync(manifest, token));
             if (saved != record) return false;
             await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
@@ -53,8 +53,22 @@ public sealed class OwnedBenchmarkFileManager
     {
         if (!await IsOwnedAsync(record, token)) throw new InvalidOperationException("Benchmark-file ownership could not be established; cleanup refused.");
         BeforeDeleteForTest?.Invoke(record.FilePath);
-        if (!await IsOwnedAsync(record, token)) throw new InvalidOperationException("Benchmark-file identity changed during cleanup; deletion refused.");
-        if (File.Exists(record.FilePath)) File.Delete(record.FilePath);
+        EnsureNoReparsePoints(Path.GetDirectoryName(record.FilePath)!);
+        EnsureNotReparsePoint(record.ManifestPath);
+        await using (var manifest = new FileStream(record.ManifestPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous))
+        {
+            var saved = await JsonSerializer.DeserializeAsync<OwnedFileRecord>(manifest, cancellationToken: token);
+            if (saved != record) throw new InvalidOperationException("Ownership manifest changed during cleanup; deletion refused.");
+            using var handle = CreateFile(record.FilePath, 0x80010000, 0, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero);
+            if (handle.IsInvalid) throw new IOException("Unable to open the owned file for verified delete-on-close.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+            var identity = Identity(handle);
+            if (identity.VolumeSerialNumber != record.VolumeSerialNumber || identity.FileIndex != record.FileIndex)
+                throw new InvalidOperationException("Benchmark-file identity changed during cleanup; deletion refused.");
+            token.ThrowIfCancellationRequested();
+            byte deleteOnClose = 1;
+            if (!SetFileInformationByHandle(handle, 4, ref deleteOnClose, 1))
+                throw new IOException("Unable to mark the verified owned handle for delete-on-close.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+        }
         File.Delete(record.ManifestPath);
         string? directory = Path.GetDirectoryName(record.FilePath);
         if (directory is not null && Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
@@ -87,6 +101,7 @@ public sealed class OwnedBenchmarkFileManager
     private static (uint VolumeSerialNumber, ulong FileIndex) Identity(SafeFileHandle handle)
     {
         if (!GetFileInformationByHandle(handle, out var info)) throw new IOException("Unable to establish benchmark-file identity.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
+        if ((info.FileAttributes & (uint)FileAttributes.ReparsePoint) != 0) throw new IOException("Owned benchmark handle refers to a reparse point.");
         return (info.VolumeSerialNumber, ((ulong)info.FileIndexHigh << 32) | info.FileIndexLow);
     }
     [StructLayout(LayoutKind.Sequential)]
@@ -96,6 +111,11 @@ public sealed class OwnedBenchmarkFileManager
         public System.Runtime.InteropServices.ComTypes.FILETIME LastWriteTime; public uint VolumeSerialNumber; public uint FileSizeHigh; public uint FileSizeLow;
         public uint NumberOfLinks; public uint FileIndexHigh; public uint FileIndexLow;
     }
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(string path, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass, ref byte deleteOnClose, uint size);
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out ByHandleFileInformation information);

@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace pixinit.ViewModels.Nvme;
 
-public sealed class NvmeViewModel : DeviceViewModel
+public sealed partial class NvmeViewModel : DeviceViewModel
 {
     private NvmeDiagnostics? result;
     public string CriticalWarning => result?.CriticalWarning.Availability == Core.Diagnostics.Common.Availability.Available
@@ -48,6 +48,25 @@ public sealed class NvmeViewModel : DeviceViewModel
     public string PowerCycles => Counter(5, "cycles");
     public string UnsafeShutdowns => Counter(7, "events");
     public string MediaErrors => Counter(8, "errors");
+    public sealed record SmartReading(string Field, string Value, string Unit);
+    public IReadOnlyList<SmartReading> SmartReadings
+    {
+        get
+        {
+            var rows = new List<SmartReading>
+            {
+                new("Critical warning", CriticalWarning, "Device status"), new("Composite temperature", Temperature, "Celsius"),
+                new("Available spare", AvailableSpare, "%"), new("Spare threshold", SpareThreshold, "%"),
+                new("Percentage used", PercentageUsed, "Consumed endurance %")
+            };
+            string[] names = ["Data units read", "Data units written", "Host read commands", "Host write commands", "Controller busy time", "Power cycles", "Power-on time", "Unsafe shutdowns", "Media / data integrity errors", "Error information log entries"];
+            string[] units = ["1,000 x 512 bytes (rounded up)", "1,000 x 512 bytes (rounded up)", "commands", "commands", "minutes", "cycles", "hours", "events", "errors", "entries"];
+            for (int i = 0; i < names.Length; i++)
+                rows.Add(new(names[i], result?.Health is { } h && h.Counters.Count > i ? h.Counters[i].ToString(System.Globalization.CultureInfo.InvariantCulture) : "Unavailable", units[i]));
+            return rows;
+        }
+    }
+    public string WarningSummary => result?.Health is not { } h ? "Warnings not queried" : h.Warning == 0 ? "No critical warning reported" : NvmeHealthParser.Warnings(h.Warning);
     public string QuerySummary => result is null ? "Diagnostics not queried" : string.Join(" · ", result.Responses.Select(r => $"{r.Operation}: {Outcome(r.Outcome)}"));
     private static string FormatNumber(Core.Diagnostics.Common.Metric<double>? metric, string format) =>
         metric?.Availability == Core.Diagnostics.Common.Availability.Available && metric.Value is double value
@@ -65,10 +84,22 @@ public sealed class NvmeViewModel : DeviceViewModel
     private static string Outcome(NvmeOutcome outcome) => outcome switch
     { NvmeOutcome.NotQueried => "Not queried", NvmeOutcome.Unsupported => "Unsupported", NvmeOutcome.AccessDenied => "Access denied", NvmeOutcome.Success => "Available", _ => outcome.ToString() };
     public void Apply(NvmeDiagnostics value) { if (value.DeviceId != Device?.Id) return; result = value; ResultReceived(); NotifyResults(); }
+    protected override pixinit.Core.Diagnostics.Common.ThermalInfo? ObservedThermal => result?.Thermal;
+    public double? ConsumedPercentage => result?.PercentageUsed.Value;
     protected override void ClearResults() { result = null; NotifyResults(); }
+
+    public string FirstPageWarnings => WarningSummary + "\n" + IdentityStatus;
+    public override IReadOnlyList<InfoRow> EntireSsdInfo => IdentityRows(result?.Controller?.Model, result?.Controller?.Firmware, result?.Controller?.Serial).Concat(new InfoRow[]
+    {
+        new("Power-on hours", FirstPageValue(PowerOnHours)), new("Power cycles", FirstPageValue(PowerCycles)),
+        new("Host writes", FirstPageValue(HostWrites), HostWrites == "Unavailable"), new("Host reads", FirstPageValue(HostReads)),
+        new("Observed temperature", FirstPageValue(Temperature), result?.Thermal?.ObservedC is null),
+        new("Available spare", FirstPageValue(AvailableSpare)), new("Percentage Used (consumed)", FirstPageValue(PercentageUsed)), new("Critical warning", FirstPageValue(CriticalWarning))
+    }).ToArray();
     private void NotifyResults()
     {
-        foreach (var name in new[] { nameof(Result), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(WarningDetails), nameof(SpareThreshold), nameof(RawDetails), nameof(CriticalWarning), nameof(CriticalWarningRaw), nameof(Temperature), nameof(AvailableSpare), nameof(PercentageUsed), nameof(Usage), nameof(Thermal), nameof(ThermalSummary), nameof(Controller), nameof(Errors), nameof(IdentityStatus), nameof(Scope), nameof(HostReads), nameof(HostWrites), nameof(PowerOnHours), nameof(PowerCycles), nameof(UnsafeShutdowns), nameof(MediaErrors), nameof(QuerySummary) }) Changed(name);
+        NotifyDetailRows();
+        foreach (var name in new[] { nameof(FirstPageWarnings), nameof(EntireSsdInfo), nameof(Result), nameof(SmartReadings), nameof(WarningSummary), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(WarningDetails), nameof(SpareThreshold), nameof(RawDetails), nameof(CriticalWarning), nameof(CriticalWarningRaw), nameof(Temperature), nameof(AvailableSpare), nameof(PercentageUsed), nameof(Usage), nameof(Thermal), nameof(ThermalSummary), nameof(Controller), nameof(Errors), nameof(IdentityStatus), nameof(Scope), nameof(HostReads), nameof(HostWrites), nameof(PowerOnHours), nameof(PowerCycles), nameof(UnsafeShutdowns), nameof(MediaErrors), nameof(QuerySummary) }) Changed(name);
     }
 }
 

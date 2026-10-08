@@ -4,7 +4,7 @@ using pixinit.Core.Benchmark;
 
 namespace pixinit.Infrastructure.Benchmarking;
 
-public sealed class FileBenchmarkEngine
+public sealed partial class FileBenchmarkEngine
 {
     private readonly OwnedBenchmarkFileManager files;
     internal BenchmarkOperation? FailOperationForTest { get; set; }
@@ -22,6 +22,7 @@ public sealed class FileBenchmarkEngine
         if (consentRequired && !consentGranted) throw new InvalidOperationException("Explicit write consent is required for the selected workload or read-file preparation.");
         Guid id = Guid.NewGuid(); DateTimeOffset started = DateTimeOffset.UtcNow; long totalStart = Stopwatch.GetTimestamp();
         OwnedFileRecord owned = preparedFile ?? await files.CreateAsync(target.Directory, id, token); bool cleanup = false;
+        SustainedMeasurement? sustained = null;
         var results = new List<BenchmarkOperationResult>(); long prepBytes = 0; double prepSeconds = 0, cleanupSeconds = 0; string? reason = null; BenchmarkCompletion completion = BenchmarkCompletion.Completed;
         try
         {
@@ -30,7 +31,7 @@ public sealed class FileBenchmarkEngine
                 long start = Stopwatch.GetTimestamp(); progress?.Report(new("Preparing bounded benchmark file", null, 0, configuration.FileSizeBytes, 0));
                 if (!await files.IsOwnedAsync(owned, token)) throw new IOException("Benchmark file identity changed before preparation; write refused.");
                 await using var stream = Open(owned.FilePath, FileMode.Open, FileAccess.ReadWrite, configuration.SequentialBlockBytes, FileOptions.SequentialScan);
-                stream.SetLength(configuration.FileSizeBytes);
+                stream.SetLength(configuration.RequiredFileBytes);
                 if (configuration.HasReadWork)
                 {
                     byte[] pattern = Pattern(Math.Min(configuration.SequentialBlockBytes, 4 * 1024 * 1024));
@@ -40,12 +41,25 @@ public sealed class FileBenchmarkEngine
                 }
                 prepSeconds = Elapsed(start);
             }
+            else if ((configuration.Operations & BenchmarkOperation.SustainedWrite) != 0)
+            {
+                long start = Stopwatch.GetTimestamp();
+                if (!await files.IsOwnedAsync(owned, token)) throw new IOException("Benchmark file identity changed before expansion; write refused.");
+                await using var stream = Open(owned.FilePath, FileMode.Open, FileAccess.ReadWrite, configuration.SequentialBlockBytes, FileOptions.SequentialScan);
+                stream.SetLength(configuration.RequiredFileBytes); prepSeconds = Elapsed(start);
+            }
             foreach (var op in Ordered(configuration.Operations))
             {
                 if (!await files.IsOwnedAsync(owned, token)) throw new IOException("Benchmark file identity changed; further I/O refused.");
-                var result = FailOperationForTest == op
-                    ? BenchmarkOperationResult.Calculate(op, 0, 0, 1, null, BenchmarkOperationState.Failed, "Synthetic benchmark operation failure.")
-                    : await MeasureAsync(owned.FilePath, configuration, op, progress, token); results.Add(result);
+                BenchmarkOperationResult result;
+                if (FailOperationForTest == op) result = BenchmarkOperationResult.Calculate(op, 0, 0, 1, null, BenchmarkOperationState.Failed, "Synthetic benchmark operation failure.");
+                else if (op == BenchmarkOperation.SustainedWrite)
+                {
+                    sustained = await MeasureSustainedAsync(owned.FilePath, configuration, progress, token);
+                    result = sustained.Result;
+                }
+                else result = await MeasureAsync(owned.FilePath, configuration, op, progress, token);
+                results.Add(result);
                 if (result.State == BenchmarkOperationState.Cancelled) { completion = BenchmarkCompletion.Cancelled; reason = "Cancelled by user; partial measurement is incomplete."; break; }
                 if (result.State == BenchmarkOperationState.Failed) { completion = BenchmarkCompletion.Failed; reason = result.Error; break; }
             }
@@ -61,7 +75,12 @@ public sealed class FileBenchmarkEngine
         }
         return new(id, started, DateTimeOffset.UtcNow, BenchmarkPolicy.Version, typeof(FileBenchmarkEngine).Assembly.GetName().Version?.ToString() ?? "Unavailable",
             target, configuration, results, completion, reason, prepBytes, prepSeconds, 0, cleanupSeconds, Elapsed(totalStart), consentRequired, consentGranted,
-            null, null, owned.FilePath, cleanup);
+            null, null, owned.FilePath, cleanup)
+        {
+            SafetyPolicy = "ordinary-3GiB-reserve-3GiB-sustained-32GiB-reserve-1GiB",
+            SustainedSamples = sustained?.Samples ?? [], SustainedWriteMBs = sustained?.PostDropMBs,
+            ThroughputDropSecond = sustained?.DropSecond, SustainedStatus = sustained?.Status ?? "Not selected"
+        };
     }
 
     private static async Task<BenchmarkOperationResult> MeasureAsync(string path, BenchmarkConfiguration c, BenchmarkOperation op, IProgress<BenchmarkProgress>? progress, CancellationToken token)
@@ -69,6 +88,7 @@ public sealed class FileBenchmarkEngine
         int block = op is BenchmarkOperation.SequentialRead or BenchmarkOperation.SequentialWrite ? c.SequentialBlockBytes : c.RandomBlockBytes;
         long plannedOps = op is BenchmarkOperation.SequentialRead or BenchmarkOperation.SequentialWrite ? c.FileSizeBytes / block * c.Iterations : (long)c.RandomOperationCount * c.Iterations;
         long plannedBytes = plannedOps * block, bytes = 0, operations = 0, measurementStart = Stopwatch.GetTimestamp(), latencyTicks = 0, minimum = long.MaxValue, maximum = 0;
+        long lastProgress = measurementStart;
         byte[] buffer = Pattern(block); bool writing = op is BenchmarkOperation.SequentialWrite or BenchmarkOperation.RandomWrite;
         var options = op is BenchmarkOperation.SequentialRead or BenchmarkOperation.SequentialWrite ? FileOptions.SequentialScan : FileOptions.RandomAccess;
         try
@@ -82,11 +102,12 @@ public sealed class FileBenchmarkEngine
                 for (long i = 0; i < count; i++)
                 {
                     token.ThrowIfCancellationRequested();
-                    if (op is BenchmarkOperation.RandomRead or BenchmarkOperation.RandomWrite) stream.Position = random.NextInt64(c.FileSizeBytes / block) * block;
                     long one = Stopwatch.GetTimestamp();
+                    if (op is BenchmarkOperation.RandomRead or BenchmarkOperation.RandomWrite) stream.Position = random.NextInt64(c.FileSizeBytes / block) * block;
                     if (writing) await stream.WriteAsync(buffer, token); else { int read = 0; while (read < block) { int n = await stream.ReadAsync(buffer.AsMemory(read, block - read), token); if (n == 0) throw new EndOfStreamException(); read += n; } }
                     long ticks = Stopwatch.GetTimestamp() - one; latencyTicks += ticks; minimum = Math.Min(minimum, ticks); maximum = Math.Max(maximum, ticks); bytes += block; operations++;
-                    progress?.Report(new($"Measuring {op}", op, bytes, plannedBytes, Elapsed(measurementStart)));
+                    if (Stopwatch.GetTimestamp() - lastProgress >= Stopwatch.Frequency / 10 || operations == plannedOps)
+                    { progress?.Report(new($"Measuring {op}", op, bytes, plannedBytes, Elapsed(measurementStart))); lastProgress = Stopwatch.GetTimestamp(); }
                 }
             }
             if (writing) await stream.FlushAsync(token);
@@ -102,7 +123,7 @@ public sealed class FileBenchmarkEngine
     private static FileStream Open(string path, FileMode mode, FileAccess access, int buffer, FileOptions hint) => new(path, mode, access, FileShare.Read, Math.Clamp(buffer, 4096, 1024 * 1024), FileOptions.Asynchronous | hint);
     private static double Elapsed(long start) => (Stopwatch.GetTimestamp() - start) / (double)Stopwatch.Frequency;
     private static IEnumerable<BenchmarkOperation> Ordered(BenchmarkOperation selected)
-    { foreach (var op in new[] { BenchmarkOperation.SequentialWrite, BenchmarkOperation.SequentialRead, BenchmarkOperation.RandomWrite, BenchmarkOperation.RandomRead }) if ((selected & op) != 0) yield return op; }
+    { foreach (var op in new[] { BenchmarkOperation.SequentialWrite, BenchmarkOperation.SequentialRead, BenchmarkOperation.RandomWrite, BenchmarkOperation.RandomRead, BenchmarkOperation.SustainedWrite }) if ((selected & op) != 0) yield return op; }
     private static byte[] Pattern(int size)
     {
         var bytes = new byte[size]; ulong x = 0x9E3779B97F4A7C15UL;
