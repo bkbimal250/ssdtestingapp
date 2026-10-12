@@ -1,5 +1,7 @@
 # PIXINIT
 
+Current benchmark update (2026-10-10): responsive Quick/Deep/Custom UI, accurate diagnostic footer, observed Windows PCIe link properties and 352 passing checks. Release qualification remains PARTIAL. See [latest validation](docs/benchmark-ui-revamp-validation.md). Earlier buffered-only descriptions apply to legacy mode.
+
 Windows C#/.NET 10 WPF storage diagnostics with distinct SATA/NVMe views, SQLite history, reporting and safe bounded filesystem benchmarks.
 
 - Main tabs: Diagnostics, Benchmark, Other / Unidentified.
@@ -19,7 +21,7 @@ Requires .NET 10 SDK; packaging also requires Inno Setup 6. The release script r
 The optional `-Hardware` verification mode includes physical reads and writes. Do not use it for layout checks.
 
 - [Installation, upgrade, uninstall and DPI testing](docs/installation.md)
-- [Current release evidence](docs/release-2026-10-08.md)
+- [Current release evidence](docs/release-2026-10-09.md)
 - [Compatibility matrix](docs/compatibility.md)
 - [Release checklist](docs/release-checklist.md)
 - [Project summary for AI](PROJECT_SUMMARY_FOR_AI.md)

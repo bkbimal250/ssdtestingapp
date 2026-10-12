@@ -9,7 +9,6 @@ using System.Windows.Threading;
 using pixinit.Application.Reporting;
 using pixinit.Core.Assessment;
 using pixinit.Core.History;
-using pixinit.Infrastructure.History;
 using pixinit.ViewModels.Shell;
 using pixinit.Infrastructure.Windows.Sata;
 using pixinit.Infrastructure.Windows.Nvme;
@@ -85,32 +84,8 @@ internal static partial class Program
                     report.Add($"Actual assessment: state={actualAssessment.StateDisplay}; coverage={actualAssessment.Coverage}; checklist={actualAssessment.ChecklistDisplay}; rules={actualAssessment.RuleSetVersion}; scope={actualAssessment.ProtocolScope}");
                     foreach (var check in actualAssessment.Checks) report.Add($"  Check {check.RuleId}: {check.Outcome}; {check.Evidence}");
 
-                    var probe = SnapshotFactory.Create(Guid.Empty, vm.SelectedNvme, second);
-                    var reopenedStore = new SqliteHistoryStore(); await reopenedStore.InitializeAsync();
-                    var rows = await reopenedStore.ListAsync(0, 20, "Nvme", probe.Device.MatchKey);
-                    var completed = rows.Where(r => r.CompletionState == "Completed").Take(2).ToArray();
-                    Check(completed.Length >= 2, "Two actual NVMe sessions persist and reopen from SQLite after store restart");
-                    var current = await reopenedStore.LoadAsync(completed[0].Id) ?? throw new InvalidOperationException("Latest actual snapshot could not be reopened.");
-                    var previous = await reopenedStore.LoadAsync(completed[1].Id) ?? throw new InvalidOperationException("Previous actual snapshot could not be reopened.");
-                    var comparison = SnapshotComparison.Compare(previous, current);
-                    Check(comparison.Count > 0, "Actual NVMe sessions produce a scope-compatible comparison");
-                    string jsonPath = Path.GetFullPath("docs/phase-5-intel-nvme.json"), textPath = Path.GetFullPath("docs/phase-5-intel-nvme.txt");
-                    await DiagnosticReportExporter.ExportJsonAsync(current, jsonPath, new());
-                    await DiagnosticReportExporter.ExportTextAsync(current, textPath, new());
-                    using var exported = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath));
-                    var exportRoot = exported.RootElement;
-                    Check(exportRoot.GetProperty("SerialRedacted").GetBoolean() && !exportRoot.GetProperty("RawPayloadsIncluded").GetBoolean() && exportRoot.GetProperty("Snapshot").GetProperty("Device").GetProperty("Serial").GetString() == "REDACTED", "Actual JSON export redacts serial and omits raw payloads by default");
-                    var exportedMetrics = exportRoot.GetProperty("Snapshot").GetProperty("Metrics").EnumerateArray().ToDictionary(e => e.GetProperty("Key").GetString()!, e => e.GetProperty("ValueText").ValueKind == JsonValueKind.Null ? null : e.GetProperty("ValueText").GetString());
-                    Check(current.Metrics.All(m => exportedMetrics.TryGetValue(m.Key, out var value) && value == m.ValueText), "Actual JSON exported values exactly match the selected snapshot");
-                    Check((await File.ReadAllTextAsync(textPath)).Contains(current.RuleSetVersion), "Actual TXT export retains assessment rule version");
-                    report.Add($"History: reopened {completed.Length} recent matching sessions; compatible metric comparisons={comparison.Count}; database={SqliteHistoryStore.DefaultPath}");
-                    report.Add($"Exports: {jsonPath}; {textPath}; selected snapshot values matched JSON exactly; serial redacted; raw payloads omitted");
+                    report.Add("Diagnostics are live in-memory results; no history database or export.");
 
-                    if (vm.History is not null)
-                    {
-                        vm.History.Selected = vm.History.Sessions.FirstOrDefault(r => r.Id == completed[0].Id);
-                        await Task.Delay(100);
-                    }
                 }
                 Check(WindowsAtaTransport.DispatchCount == 0, "Production startup sends zero ATA commands");
                 Check(vm.SataDevices.Count != 0 || !vm.ReadSataCommand.CanExecute(null), "SATA action disabled when no SATA device exists");
@@ -146,22 +121,12 @@ internal static partial class Program
                     Check(new[] { cancelledBenchmark, firstBenchmark, secondBenchmark }.All(s => s.CleanupSucceeded && !File.Exists(s.BenchmarkFilePath)), "All actual benchmark files are cleaned after cancellation and completion");
                     Check(vm.Nvme.Result!.Responses.Single(r => r.Operation == Core.Diagnostics.Nvme.NvmeOperation.Namespace).Outcome == Core.Diagnostics.Nvme.NvmeOutcome.NotQueried, "Benchmarking does not invent unavailable NVMe namespace information");
 
-                    var benchmarkStore = new SqliteHistoryStore(); await benchmarkStore.InitializeAsync(); var benchmarkRows = await benchmarkStore.ListBenchmarksAsync(0, 20, secondBenchmark.Target.Device?.MatchKey);
-                    var twoCompleted = benchmarkRows.Where(r => r.CompletionState == "Completed").Take(2).ToArray(); Check(twoCompleted.Length == 2, "Actual benchmark history reopens after a new store instance");
-                    var currentBenchmark = await benchmarkStore.LoadBenchmarkAsync(twoCompleted[0].Id) ?? throw new InvalidOperationException("Reopened benchmark missing."); var priorBenchmark = await benchmarkStore.LoadBenchmarkAsync(twoCompleted[1].Id) ?? throw new InvalidOperationException("Prior benchmark missing.");
-                    Check(BenchmarkComparisons.Compare(priorBenchmark, currentBenchmark).Count == 4, "Actual compatible benchmark sessions compare all four operations");
-                    string benchmarkJson = Path.GetFullPath("docs/phase-6-intel-nvme-benchmark.json"), benchmarkTxt = Path.GetFullPath("docs/phase-6-intel-nvme-benchmark.txt");
-                    await BenchmarkReportExporter.ExportJsonAsync(currentBenchmark, benchmarkJson); await BenchmarkReportExporter.ExportTextAsync(currentBenchmark, benchmarkTxt);
-                    using var benchmarkExport = JsonDocument.Parse(await File.ReadAllTextAsync(benchmarkJson)); var exportedResults = benchmarkExport.RootElement.GetProperty("Session").GetProperty("Results").EnumerateArray().ToArray();
-                    Check(exportedResults.Select(e => e.GetProperty("BytesProcessed").GetInt64()).SequenceEqual(currentBenchmark.Results.Select(r => r.BytesProcessed)) && benchmarkExport.RootElement.GetProperty("Session").GetProperty("Target").GetProperty("Device").GetProperty("Serial").GetString() == "REDACTED", "Actual benchmark JSON values match history and serial is redacted");
-                    Check((await File.ReadAllTextAsync(benchmarkTxt)).Contains(BenchmarkPolicy.Version), "Actual benchmark TXT includes the policy version and methodology");
+                    var currentBenchmark = secondBenchmark;
                     Check(WindowsAtaTransport.DispatchCount == 0, "Actual filesystem benchmarks dispatch zero ATA mutation commands");
                     report.Add($"Phase 6 target: {currentBenchmark.Target.Directory}; {currentBenchmark.Target.MappingEvidence}; preset={currentBenchmark.Configuration.Preset}; policy={currentBenchmark.PolicyVersion}");
                     foreach (var r in currentBenchmark.Results) report.Add($"  {r.Operation}: bytes={r.BytesProcessed}; seconds={r.MeasuredSeconds:R}; MB/s={r.MegabytesPerSecond:R}; MiB/s={r.MebibytesPerSecond:R}; IOPS={r.Iops?.ToString("R") ?? "N/A"}; latency avg/min/max ms={r.Latency?.AverageMilliseconds:R}/{r.Latency?.MinimumMilliseconds:R}/{r.Latency?.MaximumMilliseconds:R}");
                     report.Add($"Phase 6 actual bytes written across cancelled + two completed sessions: {actualWrites}; configured upper bound: {2 * 68 * BenchmarkPolicy.MiB + 32 * BenchmarkPolicy.MiB}; all cleanup succeeded=true; consent prompts={consent.Calls}");
-                    report.Add($"Phase 6 history reopened={twoCompleted.Length}; compatible comparisons={BenchmarkComparisons.Compare(priorBenchmark, currentBenchmark).Count}; exports={benchmarkTxt}, {benchmarkJson}");
                     window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "phase6-benchmark-completed-desktop.png");
-                    vm.Benchmark.SelectedHistoryRow = vm.Benchmark.Sessions.FirstOrDefault(r => r.Id == currentBenchmark.Id); await Task.Delay(100); Pump(); Capture(window, "phase6-benchmark-history-desktop.png");
                 }
                 window.Width = 1280; window.Height = 700; Pump();
                 if (Find<pixinit.Views.Nvme.NvmeView>(window).Single().Content is ScrollViewer nvmeScroll) nvmeScroll.ScrollToVerticalOffset(235);

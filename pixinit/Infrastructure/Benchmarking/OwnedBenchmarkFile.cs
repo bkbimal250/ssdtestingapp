@@ -12,23 +12,25 @@ public sealed class OwnedBenchmarkFileManager
 {
     public const string DirectoryName = ".pixinit-benchmark";
     internal Action<string>? BeforeDeleteForTest { get; set; }
-    public async Task<OwnedFileRecord> CreateAsync(string targetDirectory, Guid sessionId, CancellationToken token)
+    public async Task<OwnedFileRecord> CreateAsync(string targetDirectory, Guid sessionId, CancellationToken token, string? plannedNonce = null)
     {
+        if (plannedNonce is not null && (plannedNonce.Length != 32 || plannedNonce.Any(c => !Uri.IsHexDigit(c)))) throw new InvalidOperationException("Invalid planned ownership nonce.");
         string target = Path.GetFullPath(targetDirectory); EnsureNoReparsePoints(target);
         string directory = Path.Combine(target, DirectoryName); Directory.CreateDirectory(directory); EnsureNotReparsePoint(directory);
-        string nonce = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        string nonce = plannedNonce ?? Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
         string file = Path.Combine(directory, $"pixinit-benchmark-{sessionId:N}-{nonce}.bin"); string manifest = file + ".owner.json";
-        string temporaryManifest = manifest + ".tmp";
+        string temporaryManifest = manifest + ".tmp"; bool created = false;
         try
         {
             await using var stream = new FileStream(file, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read, 4096, FileOptions.Asynchronous);
+            created = true;
             var identity = Identity(stream.SafeFileHandle);
             var record = new OwnedFileRecord(sessionId, nonce, file, manifest, DateTimeOffset.UtcNow, identity.VolumeSerialNumber, identity.FileIndex);
             await File.WriteAllTextAsync(temporaryManifest, JsonSerializer.Serialize(record), token); File.Move(temporaryManifest, manifest);
             return record;
         }
-        catch { if (File.Exists(file)) File.Delete(file); throw; }
-        finally { if (File.Exists(temporaryManifest)) File.Delete(temporaryManifest); }
+        catch { if (created && File.Exists(file)) File.Delete(file); throw; }
+        finally { if (created && File.Exists(temporaryManifest)) File.Delete(temporaryManifest); }
     }
     public async Task<bool> IsOwnedAsync(OwnedFileRecord record, CancellationToken token = default)
     {
@@ -97,6 +99,11 @@ public sealed class OwnedBenchmarkFileManager
     private static void EnsureNotReparsePoint(string path)
     {
         if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new IOException($"Reparse-point benchmark paths are not allowed: {path}");
+    }
+    internal static void VerifyHandle(OwnedFileRecord record, SafeFileHandle handle)
+    {
+        var identity = Identity(handle);
+        if (identity.VolumeSerialNumber != record.VolumeSerialNumber || identity.FileIndex != record.FileIndex) throw new IOException("Owned benchmark file was replaced; I/O refused.");
     }
     private static (uint VolumeSerialNumber, ulong FileIndex) Identity(SafeFileHandle handle)
     {

@@ -24,37 +24,22 @@ internal static partial class Program
         var mixed = BenchmarkPolicy.Quick with { FileSizeBytes = 1024 * BenchmarkPolicy.MiB, Operations = BenchmarkPolicy.Quick.Operations | BenchmarkOperation.SustainedWrite, SustainedDurationSeconds = 30 };
         BenchmarkPolicy.Validate(mixed, 5_000_000_000);
         Check(BenchmarkPolicy.Version == "benchmark-policy-v3" && mixed.RequiredFileBytes == 1_073_741_824 && mixed.SustainedMaximumWriteBytes == 34_359_738_368, "1024 MiB ordinary plus 30-second sustained validates at five billion free bytes with separate footprints/caps");
-        var capture = new CaptureDevice(); var disk = Drive("capture", StorageProtocol.Nvme);
-        capture.SetDevice(disk); int reads = 0;
-        capture.ConfigureThermalCapture(_ => { reads++; capture.Reading = new(null, null, ThermalState.Green, 39.9, "Injected", DateTimeOffset.UtcNow); return Task.CompletedTask; }, _ => Task.FromResult(true), () => true, () => { });
-        capture.MarkBenchmarkFinished(DateTimeOffset.UtcNow);
-        await capture.CaptureTemperatureAsync(true);
-        Check(capture.IdleTemp is null && reads == 0 && capture.ThermalCaptureStatus.Contains("Wait 10 min idle"), "Recent benchmark blocks idle capture without falsely labeling current temperature idle");
-        capture.MarkBenchmarkFinished(DateTimeOffset.UtcNow.AddMinutes(-11)); await capture.CaptureTemperatureAsync(true);
-        Check(capture.IdleTemp == 39.9 && capture.IdleTempObservedAt is not null && capture.ThermalSnapshot!.IdleCondition.Contains("Ten-minute"), "Verified idle window stores temperature, timestamp and condition independently");
-        await capture.CaptureTemperatureAsync(false);
-        Check(capture.LoadTemp == 39.9 && capture.LoadTempObservedAt is not null && capture.ThermalSnapshot!.LoadCondition.Contains("not established"), "Manual load capture records its unestablished workload condition");
-        capture.ConfigureThermalCapture(_ => { capture.Reading = new(null, null, ThermalState.Green, 45, "Injected", DateTimeOffset.UtcNow.AddMinutes(-1)); return Task.CompletedTask; }, _ => Task.FromResult(false), () => true, () => { });
-        await capture.CaptureTemperatureAsync(true);
-        Check(capture.IdleTemp == 39.9 && capture.ThermalCaptureStatus.Contains("cannot be verified"), "Unverified or active disk cannot overwrite verified idle observation");
-        await capture.CaptureTemperatureAsync(false);
-        Check(capture.LoadTemp == 39.9 && capture.ThermalCaptureStatus.Contains("fresh reading"), "Stale diagnostic temperature cannot become a new load capture");
-        capture.SetDevice(Drive("different", StorageProtocol.Nvme));
-        Check(capture.IdleTemp is null && capture.LoadTemp is null, "Switching devices clears captured thermal observations");
-        capture.ConfigureThermalCapture(_ => Task.CompletedTask, token => Task.Delay(Timeout.Infinite, token).ContinueWith(_ => true, token), () => true, () => { });
-        var waiting = capture.CaptureTemperatureAsync(true); capture.CancelThermalCapture(); await waiting;
-        Check(!capture.ThermalCaptureBusy && capture.ThermalCaptureStatus.Contains("cancelled"), "Idle verification cancellation releases UI state without saving an observation");
+        var disk = Drive("current-temperature", StorageProtocol.Nvme);
+        var currentDevice = new CaptureDevice(); currentDevice.SetDevice(disk);
+        currentDevice.Reading = new(null, null, ThermalState.Green, 30, "Current test observation", DateTimeOffset.UtcNow);
+        Check(currentDevice.CurrentTemp == 30 && currentDevice.ThermalSnapshot?.LoadC is null && currentDevice.ThermalSnapshot?.IdleC is null, "Current temperature remains available without inventing captured idle/load conditions");
+        Check(typeof(pixinit.ViewModels.Shared.DeviceViewModel).GetProperty("CaptureIdleCommand") is null && typeof(BenchmarkViewModel).GetProperty("CaptureLoadCommand") is null, "Manual temperature capture commands are removed from view models");
         string root = Path.Combine(Path.GetTempPath(), "pixinit-company-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
         try
         {
             var selected = disk with { MountPoints = [Path.GetPathRoot(root)!], InterfacePath = "test", InstanceId = "test" };
             var gate = new StorageOperationGate(); var engine = new FileBenchmarkEngine(); var config = BenchmarkPolicy.Quick with { Operations = BenchmarkOperation.SustainedWrite, SustainedMaximumWriteBytes = BenchmarkPolicy.MiB, SustainedDurationSeconds = 1 };
-            ThermalInfo? thermal = new(null, null, ThermalState.Green, 35, "Injected", DateTimeOffset.UtcNow); int loadCalls = 0;
-            var vm = new BenchmarkViewModel(engine, null, () => [selected], () => selected, () => { }, new Consent(true), operationGate: gate, thermal: () => thermal,
-                afterSustained: _ => { using var lease = gate.Enter(); loadCalls++; thermal = thermal! with { ObservedC = 40, LoadC = 40, LoadTempObservedAt = DateTimeOffset.UtcNow, ObservedAt = DateTimeOffset.UtcNow, LoadCondition = "Post-sustained observation" }; return Task.CompletedTask; }, percentageUsed: () => 20)
-            { TargetDirectory = root, SequentialRead = false, SequentialWrite = false, RandomRead = false, RandomWrite = false, SustainedWrite = true, SustainedBudgetMiB = 1, SustainedDurationSeconds = 1, WaitForLoadCapture = _ => Task.CompletedTask };
+            ThermalInfo? thermal = new(null, null, ThermalState.Green, 35, "Injected", DateTimeOffset.UtcNow); 
+            var vm = new BenchmarkViewModel(engine, () => [selected], () => selected, () => { }, new Consent(true), operationGate: gate, thermal: () => thermal,
+                percentageUsed: () => 20)
+            { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root, SequentialRead = false, SequentialWrite = false, RandomRead = false, RandomWrite = false, SustainedWrite = true, SustainedBudgetMiB = 1, SustainedDurationSeconds = 1 };
             await vm.RunAsync(); var session = vm.Result!;
-            Check(loadCalls == 1 && session.Thermal?.LoadC == 40 && session.PercentageUsed == 20 && session.CleanupSucceeded, "Post-sustained diagnostic capture runs after lease release and persists load context on bounded one MiB run");
+            Check(session.Thermal?.ObservedC == 35 && session.Thermal.LoadC is null && session.PercentageUsed == 20 && session.CleanupSucceeded, "Bounded sustained run keeps current thermal context without additional capture or delayed completion");
             Check(session.SafetyPolicy is not null && BenchmarkComparisons.Compare(session with { SafetyPolicy = null }, session).Count == 0, "Explicit safety policy prevents comparisons with older sessions reusing policy v3");
             var fastRead = BenchmarkOperationResult.Calculate(BenchmarkOperation.SequentialRead, 600_000_000, 1, System.Diagnostics.Stopwatch.Frequency, null);
             var completed = session with { Results = [fastRead], Thermal = thermal, PercentageUsed = 20 };

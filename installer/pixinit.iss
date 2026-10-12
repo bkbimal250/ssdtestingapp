@@ -22,7 +22,7 @@ OutputDir=..\artifacts\installer
 OutputBaseFilename=PIXINIT-Setup-1.0.0-win-x64
 SetupIconFile=..\pixinit\Assets\pixinit.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-Compression=lzma2/max
+Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
@@ -35,7 +35,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "..\artifacts\publish\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb,*.xml"
+Source: "..\artifacts\publish\win-x64\PIXINIT.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\PIXINIT"; Filename: "{app}\{#MyAppExeName}"

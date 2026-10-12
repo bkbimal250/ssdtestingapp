@@ -1,6 +1,10 @@
 # PIXINIT release checklist
 
-Status on 2026-10-08: **PARTIAL**. Current package evidence: [release validation](release-2026-10-08.md). Installation and DPI steps: [installation guide](installation.md).
+Current lightweight release (2026-10-12): pure WPF self-contained .NET 8, compressed single PIXINIT.exe 67.26 MB, installer 62.32 MB, 382 checks and zero warnings/errors. Browser removed; PARTIAL pending isolated installer/upgrade and Windows 11 mixed disks. See [validation](lightweight-release-validation.md). Earlier entries describe earlier packages.
+
+Current benchmark update (2026-10-09): timed native unbuffered profiles and 337 passing checks. Release qualification remains PARTIAL. See [latest validation](unbuffered-benchmark-validation.md). Earlier buffered-only descriptions apply to legacy mode.
+
+Status on 2026-10-09: **PARTIAL**. Current package evidence: [release validation](release-2026-10-09.md). Installation and DPI steps: [installation guide](installation.md).
 
 ## Required for every package
 

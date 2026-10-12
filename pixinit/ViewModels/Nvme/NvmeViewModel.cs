@@ -1,4 +1,5 @@
 using pixinit.Core.Diagnostics.Nvme;
+using pixinit.Core.Diagnostics.Common;
 using pixinit.ViewModels.Shared;
 using System.Numerics;
 
@@ -27,7 +28,9 @@ public sealed partial class NvmeViewModel : DeviceViewModel
     public string Temperature => FormatNumber(result?.Temperature, "F0");
     public string AvailableSpare => FormatNumber(result?.AvailableSpare, "F0");
     public string PercentageUsed => FormatNumber(result?.PercentageUsed, "F0");
-    public string Usage => (result?.UsageCounters ?? "Read / write data units, power-on hours and power cycles are unavailable.") + "\nManufacturer-rated TBW: Unavailable (no verified specification profile).\nNAND writes: Unavailable (no verified vendor-specific source).";
+    public string Usage => (result?.UsageCounters ?? "Read / write data units, power-on hours and power cycles are unavailable.") +
+        (result?.Tbw is { RatingVerified: true } rated ? $"\nManufacturer-rated endurance: {rated.RatedTB:F0} TBW. {rated.Source}." : "\nManufacturer-rated TBW: Unavailable (no verified model-specific profile).") +
+        "\nNAND writes: Unavailable (no verified vendor-specific source).";
     public string Thermal => result?.ThermalDetails ?? "Temperature sensors and thermal management time are unavailable.";
     public string ThermalSummary
     {
@@ -83,7 +86,7 @@ public sealed partial class NvmeViewModel : DeviceViewModel
     { Core.Diagnostics.Common.Availability.AccessDenied => "Access denied", Core.Diagnostics.Common.Availability.Unsupported => "Unsupported", Core.Diagnostics.Common.Availability.Error => "Error", _ => "Unavailable" };
     private static string Outcome(NvmeOutcome outcome) => outcome switch
     { NvmeOutcome.NotQueried => "Not queried", NvmeOutcome.Unsupported => "Unsupported", NvmeOutcome.AccessDenied => "Access denied", NvmeOutcome.Success => "Available", _ => outcome.ToString() };
-    public void Apply(NvmeDiagnostics value) { if (value.DeviceId != Device?.Id) return; result = value; ResultReceived(); NotifyResults(); }
+    public void Apply(NvmeDiagnostics value) { if (value.DeviceId != Device?.Id) return; result = Device is { } device ? ManufacturerEnduranceCatalog.Apply(device, value) : value; ResultReceived(); NotifyResults(); }
     protected override pixinit.Core.Diagnostics.Common.ThermalInfo? ObservedThermal => result?.Thermal;
     public double? ConsumedPercentage => result?.PercentageUsed.Value;
     protected override void ClearResults() { result = null; NotifyResults(); }

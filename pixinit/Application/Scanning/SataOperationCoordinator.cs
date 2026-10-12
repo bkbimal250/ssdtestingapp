@@ -8,7 +8,7 @@ public sealed class SataOperationCoordinator(ISataDiagnosticsProvider provider, 
 {
     public async Task<SataDiagnostics> ReadAsync(StorageDevice device, CancellationToken token, IProgress<string>? progress = null)
     {
-        if (device.Protocol != StorageProtocol.Sata || device.Bus != ConnectionBus.Sata || device.NativeBusType != 11)
+        if (!device.CanQuerySata)
             throw new InvalidOperationException("Only confirmed SATA devices can receive SATA diagnostics.");
         using (gate.Enter())
         {

@@ -1,5 +1,67 @@
 # PROJECT SUMMARY FOR AI
 
+- Latest UI removal pass (2026-10-12): Device overview protocol tab removed; only SATA/NVMe remain inside Diagnostics. Unknown-protocol disks route to Additional Devices (hidden at zero). Duplicate Temperature observations card, all manual idle/load/cancel capture commands, idle monitor and post-sustained capture delay/workflow removed. Current SATA/NVMe diagnostic temperature and Benchmark temperature card retained. No SQLite/history or export added. Release zero warnings/errors, 392 unique checks including 33 actual WPF UI checks. Publish 66,046,626 bytes; installer 61,109,845 bytes, both below 100 MB; SHA-256 60C319503836742575509471BADB0FC1037C99D51F834F79DBB22B9843A013DA. Unsigned/not installed; client RAID/DPI remain unverified. See docs/remove-device-overview-validation.md. Older general overview/capture descriptions are superseded.
+
+- Latest no-history release (2026-10-12): SQLite package, native dependencies, SqliteHistoryStore, history ViewModel/UI/composition and every database save/load/update removed. Current diagnostics, thermal observations and BenchmarkSession results are in-memory only; BenchmarkSession is the live result record, not a DB entity. Existing user databases are not accessed or deleted. TEMP/PIXINIT_detect.log is the only application operational log destination. No direct NuGet packages remain; no exports restored. Release 396 applicable checks including 12 new no-persistence checks, zero warnings/errors; old database-specific checks retired. Publish 66,054,209 bytes; installer 61,116,891 bytes; SHA-256 B883C829C65DB9052ABD5725255857CDC3C2CFF07353B0621705416603EA3CC3. Dependency manifest and executable bundle contain no SQLite libraries. Unsigned/not installed. Previous history/persistence notes are historical and superseded. Universal RAID/USB SMART coverage remains partial. See docs/no-history-validation.md.
+
+- Latest generic storage pass (2026-10-12): SSD model/brand names no longer imply SATA; removed EVM-specific protocol hint. Unknown-protocol physical disks with capacity now route to general Device overview inside Diagnostics with identity/volume usage and explicit unavailable SMART. Separate SATA/NVMe views retained, Additional Devices renamed and hidden when empty. Windows Storage SSD/HDD media retained without inventing protocol; full inventory sidebar preserved. 400 checks pass, zero warnings/errors; direct Windows 10 Intel NVMe discovery verified. Publish 67,261,642 bytes, installer 62,317,734 bytes; SHA-256 B4566E077D163140D915A3B7E82278016E0EFB0B24CBC54D2C8383512AF3505E. Inno first attempt failed resource update error 110; packaging-only retry succeeded. No universal-controller claim: SCSI inquiry enumeration, SAT/vendor USB, Intel/AMD proprietary RAID SMART and eMMC remain unimplemented, hardware matrix NOT RUN. See docs/generic-storage-validation.md.
+
+- Latest bulk no-export pass (2026-10-12): PDF/evidence JSON/QR exporter implementations and proof tests removed; shell, history and benchmark expose no export commands or buttons. Internal SQLite JSON persistence and legacy report schema/serializer checks retained. Both SATA/NVMe sidebars now show AllDevices with shared SelectedDisk routing, GB/GiB capacity, protocol/RAID heuristic/access labels and serial suffix; full serial remains in diagnostics. Four-source discovery/dedup preserved; client-shaped three-disk simulation routes one validated SATA plus SATA/NVMe heuristic disks, duplicate removed without inventing SMART or authenticity. Release 396 unique checks including 32 WPF UI checks, zero warnings/errors. Publish 67,261,279 bytes; installer 62,317,172 bytes; SHA-256 8CB3335EC3C1B893957ADAC822690D5E4DE216B4BAA420E5518791FEBFA2152D. Unsigned/not installed. Direct Windows 10 NVMe discovery verified; proprietary RAID/USB SAT native SMART, batch health scans and Windows 11 client remain unimplemented/unverified. See docs/bulk-no-export-validation.md. Previous proof validation is historical and superseded.
+
+- Latest enterprise RAID display pass (2026-10-12): deduplicate matching serial/capacity/physical-number records; preserve distinct numbers and fallback interface IDs. MSFT_PhysicalDisk COM inventory and explicit model/no-seek display heuristics move provisional disks into SATA/NVMe navigation with Limited access/Heuristic labels, reported RAID bus retained, SSD reported versus inferred separated. Native transport authorization remains verified-only; no legacy/proprietary SMART routing added. Navigation shows protocol badge, neutral health marker and serial suffix while full serial remains visible. Log raw headers/bounded identity previews with serial bytes zeroed; history persists heuristic flags. Release zero warnings/errors, 391 checks. Single-file publish 67,263,494 bytes; installer 62,319,741 bytes; SHA-256 E853A6C52F99441FBA0708649DCBC2E054C410EB53606552DC43BC0F075E7C8E, unsigned/not installed. Client Windows 11 and all-three benchmark/SMART availability unverified. See docs/enterprise-raid-validation.md.
+
+- Latest RAID pass (2026-10-12): StorageQueryService probes RAID bus via device protocol Identify (NVMe then ATA) and allowlisted ATA Identify pass-through; bounded validated payloads require matching discovery serial, ATA requires SATA capability evidence, SSD requires rotation word one. Reported RAID bus retained; verified protocol enables guarded diagnostics and device-scoped NVMe queries. Identity raw/evidence saved, omitted from redacted exports. No guessed NVMe SCSI CDB or Intel RST proprietary path. Native failures logged to TEMP; unsupported/ambiguous drivers remain Other. Release 0 warnings/errors, 388 checks; actual direct NVMe metadata unchanged, client Windows 11 RAID/BIOS comparison NOT RUN. Publish 67.26 MB, installer 62.32 MB, SHA-256 3C3F664F8A2947AC7AA25540F4D4A14B654DA2876042A1979A8F10CDC9496B18, unsigned/not installed. WPF trimming off. See docs/raid-probing-validation.md.
+
+- Latest lightweight release (2026-10-12), supersedes older stack/HTML/package notes: pure WPF net8.0-windows, WebView2 package/control/HTML and dedicated browser tests removed. Microsoft.Data.Sqlite 10.0.12 retained. Supported compressed single-file, self-contained win-x64 with native self-extraction and English satellite resources; trimming disabled because WPF does not support it. Release 0 warnings/errors, all 382 applicable checks passed on .NET 8. Publish contains only PIXINIT.exe: 67,257,372 bytes; installer 62,315,131 bytes, both below decimal 100 MB. SHA-256 19E4BA2FA9385B790D0A1CF5EB6DD414D7B0FE126096AF41C5D03B8E8FEEA8F9. Actual packaged startup opened WPF window and read-only discovery found one NVMe on Windows 10. Installer unsigned/not installed; Windows 11 mixed hardware, isolated runtime-free installation and upgrade cleanup pending. Embedded runtime extracts native libraries in TEMP; total runtime disk usage can exceed compressed publish size. See docs/lightweight-release-validation.md.
+
+- Latest multi-disk pass (2026-10-12): independent Win32_DiskDrive COM cross-check supplements SetupAPI inventory by physical disk number, with storage descriptor classification preserved and no new NuGet or health probes. Added top all-disk selector, protocol counts, TEMP PIXINIT_detect.log and defensive administrator startup check; manifest already requireAdministrator. Release 0 warnings/errors, 382 checks passed including simulated 1 NVMe + 2 SATA selection. Actual host read-only metadata: Windows 10, one NVMe. Physical Windows 11 mixed disks NOT RUN; client root cause pending log. Installer rebuilt through .NET/Inno pipeline: 47.70 MB, SHA-256 349F6C8BFEA3D81C689A3304350ADD3021E7CA25950C72659CCFDE890B7045F6, unsigned/not installed. Published self-contained folder 151.35 MB exceeds 100 MB; build/size-check.ps1 reports both sizes honestly. No npm/Electron packaging exists. See docs/multi-disk-validation.md.
+
+- Latest other-PC space/failure pass (2026-10-12): Quick defaults supersede earlier timed defaults: one fixed-workload pass, 512 MiB file, all four profiles, 1000 random operations, sustained off; about 1.51 GiB cumulative maximum writes. Deep remains timed and Custom can select timed mode. Default target is local application data/PIXINIT_TEST on the selected volume, never redirected Desktop; recognized OneDrive paths are refused before preparation. Failure reason, cleanup result/owned path and retry button are visible, incomplete passes labeled. Screenshot 8.46 GiB is cumulative writes, numerically consistent with the prior timed per-pass cap; remote cause and actual retained files unverified. No increased cap or full physical benchmark. Release pipeline passed with zero warnings/errors and 379 unique checks. Self-contained Windows x64 installer rebuilt, unsigned and not installed: SHA-256 EAFF129B3817963286DECDE83CA6F77226DB43675B7EA4F90BB7F2EDD672C1CE. See docs/other-pc-benchmark-validation.md.
+
+- Latest verification fix (2026-10-11): removed environmental free-space dependence from disposable consent/cancellation/context workflow fixtures via an internal target resolver injection that defaults to the real Windows resolver. Tests simulate 20 GiB metadata only in PIXINIT TEMP fixtures, require 64 MiB real available space, and retain existing small I/O limits. Added regression: real production default and 10-GiB refusal before consent/file creation. Final release verification passed 374 unique checks (344 behavior, 30 WPF), zero warnings/errors. Actual benchmark startup still requires more than 10 GiB free. Prior five-gap packaging blocker is resolved for deterministic tests. Self-contained Windows x64 publish and installer compilation passed; rebuilt installer SHA-256 E5F5A4A139C49DC2C8383F7E0875EFFC560877A89A6EBDA6E1D9A978DD5BA730. Unsigned, installation not run. See docs/verification-space-fix.md.
+
+- Latest five-gap update (2026-10-11): added CrystalDiskMark process refusal and an exclusive owned DeleteOnClose TEMP lock through benchmark completion; existing lock files are preserved. Write-card filter now requires both below 0.5 GiB and below 100 MB/s plus a same-profile valid pass above 500 MB/s. Measured all-pass average and Best remain; no proven cache-exhaustion claim. Sustained also caps at 5 seconds/16 GiB below 20 GiB available, preserving stricter over-80-percent-full behavior and greater-than-10-GiB start requirement. Snapshot JSON records target space at start, used by tooltips. Mode badge uses observed link fields, never speed guesses; warnings compacted. Existing Intel 660p 512 GB verified 100 TB catalog and snapshot-based footer confirmed. Build zero warnings/errors; 30 focused and 30 WPF checks passed. Full suite and packaging blocked by actual system free space about 3.2 GiB. Existing installer unchanged and predates these changes. See docs/five-gaps-validation.md.
+
+- Latest diagnostic layout pass (2026-10-10): UI only. SATA/NVMe header and section controls stretch consistently across the right pane, removing independent centering and unused margins. Navigation uses 210-DIP rails and compact rounded device cards with separate disk/model/capacity, selection and keyboard-focus indicators. Neutral header borders and button spacing match overview cards. Providers, metrics, benchmark logic and history unchanged. Release build 0 warnings/errors; 30 WPF UI checks passed at 1366x768, 1800x1000 and 760x640. Fixture screenshots and limits: docs/diagnostic-layout-validation.md. Installer not rebuilt; higher DPI unverified.
+
+- Latest write-pass UI fix (2026-10-10): comparable completed write passes below 0.5 GiB or 50 MB/s, with another valid same-profile write above 500 MB/s, are omitted only from a clearly labeled filtered card average. The original all-pass average remains visible; Best, saved measurements, report inclusion flags and sustained results are unchanged. Tooltips and a below-card warning retain slow-pass evidence without asserting SLC exhaustion, QLC identity, defect status or guaranteed recovery speed. Release build: 0 warnings/errors; all 360 applicable checks passed. Installer was not rebuilt for this UI-only request. See docs/write-pass-ui-validation.md.
+
+- Latest benchmark pass (2026-10-10): Quick/Deep/Custom UI, collapsed Advanced, responsive cards, original-pass tooltips, one progress/ETA display, written-TBW bar and optional compact thermal capture. Defaults: three passes, 1024 MiB, five seconds per profile, 15 seconds sustained/16 GiB; Deep uses 30 seconds with the same sustained ceiling. Desktop/PIXINIT_TEST is suggested only on the selected mapped volume. More than 10 GiB free is checked before consent/writes; target fullness over 80 percent reduces sustained to five seconds. Ordinary cap remains a separate 96 GiB, so total allowance may approach 112 GiB. Footer follows snapshot presence, including valid zero writes. Windows PnP confirmed PCIe 3.0 x4 on this host's Intel NVMe; link fields/source persist in snapshots. No speed-based link guesses or unproven within-spec/SLC-health claims. Final release pipeline passed 352 unique checks, 0 warnings/errors; installer rebuilt and unsigned. Isolated installer lifecycle and 125/150 percent DPI remain NOT RUN. See [latest validation](docs/benchmark-ui-revamp-validation.md).
+
+- Latest responsive UI review (2026-10-09): visually checked current SATA/NVMe Overview, SMART and Details, benchmark, history, and unidentified-device layouts at laptop and desktop sizes. Release build passed with 0 warnings/errors and 337 executable checks passed. The harness captured actual WPF windows at 1366x768, 1800x1000, and its 760x640 minimum. Host DPI was 96; 125/150 percent scaling, mixed DPI, and screen-reader use remain unverified. No UI code changes were needed. Evidence: [docs/ui-responsive-review-2026-10-09.md](docs/ui-responsive-review-2026-10-09.md).
+
+- Latest SATA/NVMe header cleanup: removed Protocol, Media Type, Metadata Access badges and the Media identification evidence expander from the visible device header. Discovery data and view models remain unchanged. Header and tab content are centered with a 1500-DIP maximum width and remain fluid on smaller screens.
+
+- Latest diagnostic UI cleanup: removed the Additional diagnostic overview expander from SATA and NVMe Overview. The FirstPageView remains the visible overview; diagnostics view models, data and backend services are unchanged.
+
+- Latest Overview layout update: Entire SSD Info now uses three equal columns, with its 16 existing identity and diagnostic rows distributed as 6/5/5 to reduce vertical space. No fields or values removed.
+
+- Endurance-rating fix: verified model catalog maps NVMe Intel SSDPEKNW512G8 at 512 GB to its Intel 660p 100 TBW product rating only when discovery and controller Identify models both match and reported capacity is within 2%. Other models retain an explicitly unverified reference. UI labels verified manufacturer endurance separately from an unverified 600 TB reference.
+
+- Latest benchmark card update: sequential and random result cards now display arithmetic average and best values for the profile(s) currently selected above. Random cards show average and best IOPS plus estimated MiB/s. Changing selection updates cards immediately; profiles absent from the last run show no completed average.
+
+
+- Latest UI simplification: removed the Benchmark footer with per-pass/history expanders, export controls, and the Sustained samples card. Sustained measurements and samples remain available in saved history and reports. Underlying history, reporting and owned-file cleanup services remain unchanged.
+
+
+## Latest timed workload update, 2026-10-09
+
+- Timed mode defaults to five seconds (5/10/20 choices); fixed workload remains available for debugging and old history. Native deadlines use Stopwatch with completion drain and write flush included in actual elapsed time.
+- Preserved 96 GiB ordinary ceiling; per-job budget exhaustion yields an incomplete result, not a fabricated five-second rate. Sustained still has a separate 32 GiB cap.
+- Enforced native buffer/sector/file/offset alignment, exact planned path consent and collision-safe ownership. Two-second pause; TRIM skipped and logged to preserve retained read-after-write data, without SLC recovery claims.
+- Invalid SATA sequential passes excluded from average/best; original pass measurements, timing, bytes, alignment and TRIM status persist.
+- 337 checks pass, with bounded 1 MiB fixtures. Physical CDM comparison and scaling remain unverified. See docs/unbuffered-benchmark-validation.md.
+
+## Earlier benchmark implementation, 2026-10-09
+
+- Default benchmark now uses native aligned unbuffered/write-through owned-file I/O with four selectable queue/thread profiles, 1/2/4 GiB sizes and 1/3/5/9 passes (default five).
+- Per-pass results, arithmetic average, best, validity and methodology persist in history and exports. Existing buffered mode/history stay supported.
+- Native ordinary application-write cap: 96 GiB, required to accommodate multiple selected profiles/passes; legacy ordinary cap remains 3 GiB. Sustained cap remains separate 32 GiB with 1 GiB circular region. Exact-target consent and mapping revalidation remain mandatory.
+- Release build: zero warnings/errors; 325 unique executable harness checks pass. Only bounded disposable native tests were run, not full physical drive benchmarks.
+- CrystalDiskMark equivalence, controller-cache bypass, SLC exhaustion, negotiated PCIe links and physical SATA results are not established. No scores are clamped or fabricated.
+- See [current benchmark validation](docs/unbuffered-benchmark-validation.md) for changed files, evidence and remaining scope. Earlier buffered-only notes below describe legacy behavior.
+
+
 - Updated: 2026-10-07, after the company workflow implementation and 304-check verification.
 - Repository: existing PIXINIT Windows desktop application. This file describes the current local working tree, including uncommitted changes; it does not establish what is published on GitHub.
 - Read this file first, then the relevant source and `docs/ssd-specifications-validation.md`. `SYSTEM_DESIGN_SDE2.md` contains a proposed design; do not assume its proposed classes, DI container or test framework are implemented.
@@ -7,7 +69,7 @@
 ## 1. Project Goal
 
 - Discover Windows storage devices and present separate SATA and NVMe diagnostics.
-- Show evidence-based assessment, telemetry, identity, diagnostic history and exportable reports.
+- Show evidence-based assessment, telemetry and identity as current in-memory observations; no history or export UI.
 - Measure sequential, random and bounded sustained filesystem performance with explicit write consent and owned-file cleanup.
 - Present host writes and temperature without inventing manufacturer ratings, missing observations or hardware capability claims.
 
@@ -15,11 +77,11 @@
 
 | Area | Current implementation |
 | --- | --- |
-| Language / framework | C#, .NET 10, `net10.0-windows`, Windows only |
-| UI | WPF, XAML, MVVM; local HTML/CSS/JavaScript Overview through WebView2 |
-| Database | Microsoft.Data.Sqlite 10.0.12; JSON session payloads |
-| Embedded browser | Microsoft.Web.WebView2 1.0.4258.31; installed WebView2 runtime required for HTML presentation; native WPF fallback |
-| Serialization | System.Text.Json; enum conversion and lossless integer strings in exports |
+| Language / framework | C#, .NET 8, `net8.0-windows`, Windows only |
+| UI | Pure WPF, XAML, MVVM; shared native FirstPageView overview |
+| Database | None; no SQLite, persistence store or history |
+| Embedded browser | None; no browser runtime required |
+| Serialization | System.Text.Json for owned-file manifests and internal evidence models; no export UI |
 | Windows integration | SetupAPI, DeviceIoControl, allowlisted SATA/NVMe read-only transports |
 | Build / packaging | .NET SDK, `pixinit.slnx`, PowerShell scripts, Inno Setup 6; self-contained win-x64 publish |
 | Tests | Custom executable harness, not xUnit/NUnit; run its executable rather than treating `dotnet test` as verification |
@@ -48,13 +110,13 @@
 | `pixinit/Core/Abstractions/` | Provider abstractions |
 | `pixinit/Infrastructure/Windows/` | Discovery, native interop and separate SATA/NVMe transports/providers |
 | `pixinit/Infrastructure/Benchmarking/` | File benchmark, sustained partial engine and positively identified owned-file management |
-| `pixinit/Infrastructure/History/` | SQLite history store |
+| Former `pixinit/Infrastructure/History/` | Removed; no persistence implementation |
 | `pixinit/Infrastructure/Logging/` | Discovery/error logging |
-| `pixinit/ViewModels/` | Shell, protocol, benchmark, history and shared observable/command state |
-| `pixinit/Views/` | Separate protocol views, new BenchmarkView, metric cards and local WebOverview |
+| `pixinit/ViewModels/` | Shell, protocol, current benchmark and shared observable/command state |
+| `pixinit/Views/` | Separate protocol views, new BenchmarkView, native metric cards |
 | `pixinit/Resources/` | Shared controls, diagnostic card styles and light theme |
 | `pixinit/Assets/`, `pixinit/Properties/` | Icon and assembly metadata |
-| `tests/pixinit.Tests/` | Behavior, parser, safety, history, specification, WPF, WebView2 and hardware harnesses |
+| `tests/pixinit.Tests/` | Behavior, parser, safety, no-persistence, specification, WPF and hardware harnesses |
 | `build/`, `installer/` | Verification/release scripts and Inno Setup definition |
 | `docs/` | Architecture, compatibility, phased reports, latest validation and screenshots; older reports describe older builds |
 | `artifacts/` | Installer/hash, publish outputs, isolated builds and verification logs; generated content is not application source |
@@ -76,25 +138,25 @@
 | Discovery | Implemented; capacity, full serial, firmware, bus, access, mount mapping and seek-penalty evidence | SSD/HDD classification is not established by this discovery path; UI says Not confirmed |
 | SATA diagnostics | Separate read-only Identify/SMART provider, virtualized attribute table, raw bytes and discrepancies | Physical SATA validation and verified vendor attribute profiles pending |
 | NVMe diagnostics | Separate controller/health/error provider, scope disclosure, consumed endurance and exact counters | Namespace Identify/mapping remains unavailable; per-namespace capability is not proof of namespace-scoped retrieval |
-| Diagnostic UI | SATA/NVMe each have Overview, SMART, Details and Raw Data; compact identity/evidence cards | HTML Overview runtime verification remains incomplete |
+| Diagnostic UI | SATA/NVMe each have native Overview, SMART and Details; compact identity/evidence cards | Physical mixed-controller verification pending |
 | Workspace UI | Diagnostics, Benchmark and Diagnostic History tabs; unidentified devices remain inside Diagnostics | Broader accessibility/DPI verification pending |
 | Sequential benchmark | Existing 1 MiB default blocks, byte/time throughput, separate MB/s and MiB/s | Buffered QD1 results, affected by caches |
 | Random benchmark | Aligned random offsets, full-block reads, per-I/O latency including positioning; Quick default 1000 operations at 4 KiB | Standard/Custom counts remain configurable; not directly comparable to higher-QD device specifications |
 | Sustained benchmark | New opt-in 1 GiB circular owned file, 1 MiB writes, up to 30 seconds or configured byte cap; interval samples and candidate-drop analysis | Full hardware run and confirmed post-SLC performance unverified |
 | TBW presentation | NVMe host-write conversion; SATA conventional SMART 241 estimate; 600 TB reference allowance and warning rule | Manufacturer-rated TBW not verified; SATA units are unverified |
 | Temperature | NVMe composite and conventional SATA 194 low-byte interpretation; 75-80 C yellow, >80 C red | Idle/load conditions are unknown; SATA encoding unverified; no added hardware sampling |
-| History / exports | Diagnostic snapshots and complete BenchmarkSession JSON stored in SQLite; extended fields and samples round-trip | Existing history schema remains v2; no DB rewrite was needed |
+| History / exports | Removed from the app; current results remain in memory only | Old DB files are not used or deleted |
 | Installer | Latest unsigned self-contained x64 installer rebuilt | Latest install/upgrade/uninstall and installed launch not tested |
 
 - Recent completed passes: full serial display; requested administrator manifest; installer finish-launch error 740 flag correction; workspace tabs; protocol secondary tabs; media-evidence disclosure; five SSD-specification cards/models/workloads.
-- HTML Overview code is present with local data messages, activity indicator and percentage gauges. Its dedicated runtime tests have not recorded a successful completed run. Native WPF checks do not prove HTML support.
+- HTML/WebView2 presentation was removed in the lightweight release; native WPF overview remains.
 - Percentage Used is consumed endurance, never remaining health. TBW reference allowance is not device health.
 
 ## 6. App Flow
 
-- Startup: compose providers/store/gate, show MainWindow, perform ordinary read-only discovery, populate protocol selections.
-- Diagnostics: explicit read command, shared gate, coordinator/provider, allowlisted transport, parser/mapper, checklist assessment, ViewModel, snapshot/history/export.
-- Benchmark: choose target/workload, validate policy, request exact write consent, re-resolve target and configuration/selection/free space, acquire gate, run engine away from UI thread, report progress, clean owned file, display/persist/export session.
+- Startup: compose providers/gate, show MainWindow, perform ordinary read-only discovery, populate protocol selections.
+- Diagnostics: explicit read command, shared gate, coordinator/provider, allowlisted transport, parser/mapper, checklist assessment, ViewModel and current in-memory result.
+- Benchmark: choose target/workload, validate policy, request exact write consent, re-resolve target and configuration/selection/free space, acquire gate, run engine away from UI thread, report progress, clean owned file, display current in-memory session.
 - Progress phases: PREP, SEQ, RND and SUSTAINED. Sustained samples reach an ObservableCollection for the bounded ListView.
 - Selection changes cancel/discard stale work and clear old benchmark readings. Shutdown waits for benchmark cancellation and cleanup.
 - Attach diagnostic context to a benchmark only when its target reliably matches the selected drive. Retain observations as snapshots rather than fabricated load measurements.
@@ -103,18 +165,18 @@
 ## 7. State Management
 
 - ObservableObject implements INotifyPropertyChanged; ActionCommand provides ICommand and explicit CanExecute refresh.
-- ShellViewModel owns selections, discovery, separate SATA/NVMe states, benchmark and history ViewModels.
+- ShellViewModel owns selections, discovery, separate SATA/NVMe states, current benchmark ViewModel.
 - StorageOperationGate is a global non-queuing lease for one storage worker in the composed app, not the proposed per-device SemaphoreSlim design.
 - BenchmarkViewModel uses CancellationTokenSource, a generation counter, consent signatures, consent revalidation and a guard against late progress.
 - Missing numeric measurements use nullable values/Availability; missing TBW hides its bar. Exact counters remain available in protocol details.
 
 ## 8. Storage / DB / API / IPC
 
-- SQLite schema v2; default DB: `%LOCALAPPDATA%/PIXINIT/SataUtility/data/history.db`.
-- SqliteHistoryStore uses transactions and JSON session payloads. New sustained samples, TBW, thermal context and random-rate properties persist without new columns.
+- No database or history persistence. Existing legacy user DB files are untouched and unused.
+- Current diagnostics, sustained samples, TBW, thermal context and random rates stay in memory until selection/reset/exit. Operational logs use `%TEMP%/PIXINIT_detect.log` only.
 - Benchmark files/manifests are created under a dedicated PIXINIT-owned directory in the chosen target. Cleanup verifies ownership and file identity; it must not delete arbitrary directories/files.
-- WebView2 browser data: `%LOCALAPPDATA%/PIXINIT/WebView2`.
-- WebOverview receives JSON presentation snapshots through WebView2 messages; no incoming storage command bridge or host objects. Local HTML is embedded as `pixinit.Overview.html`; external navigation is blocked in the wrapper.
+- Existing browser cache from older releases is not used or deleted automatically.
+- No browser, HTML resource, web IPC or host-object bridge is present in the current release.
 - No external API or database credentials. Windows native device queries remain read-only; benchmark writes are filesystem writes, not raw sectors or ATA/NVMe write commands.
 
 ## 9. Important Functions / Classes
@@ -138,16 +200,16 @@
 | AnalyzeSustained | Three baseline intervals plus three consecutive intervals below 70 percent of baseline; byte/time-weighted post-drop mean; no proven SLC attribution |
 | OwnedBenchmarkFileManager | Owned-file creation, identity validation, orphan discovery and safe cleanup |
 | BenchmarkTargetResolver / WpfWriteConsent | Volume/device mapping and explicit temporary-write approval |
-| BenchmarkViewModel / BenchmarkView | UI configuration, worker execution, samples, five cards, history and export |
-| SqliteHistoryStore / SnapshotFactory | Transactional persistence and source-aware snapshots |
+| BenchmarkViewModel / BenchmarkView | UI configuration, worker execution, current samples and five live result cards |
+| SnapshotFactory | In-memory identity/evidence DTOs shared with benchmark target attribution; no database store |
 | BenchmarkReportExporter / DiagnosticReportExporter | JSON/text reports; full serial or optional redaction |
-| WebOverview / OverviewSnapshot | Local HTML presentation with native fallback; runtime validation pending |
+| FirstPageView | Native storage usage and availability-aware device information |
 
 ## 10. Config and Environment Details
 
 - App/version: PIXINIT 1.0.0; Windows x64 deployment. NuGet sources are constrained by `NuGet.Config` package-source mapping.
 - Manifest currently requests `requireAdministrator`, per the earlier explicit user request. It declares PerMonitorV2 awareness; declarations do not establish tested DPI support.
-- Installer uses Program Files, administrator setup, shortcuts/uninstall and `runascurrentuser` for finish-page launch. Writable data stays in LocalAppData.
+- Installer uses Program Files, administrator setup, shortcuts/uninstall and `runascurrentuser` for finish-page launch. No history is written; operational logs are under TEMP and temporary benchmark files use the consented target.
 - Ordinary workloads: 16-1024 MiB file; up to 3 GiB application data writes; QD1; existing iteration/random-operation bounds.
 - Sustained workload: disabled by default; 1 GiB circular-file footprint; configurable 1-30 seconds; separate 1 MiB-32 GiB application-write cap, default 32 GiB. Reaching the cap may end before 30 seconds. A blocked native call can exceed the scheduling deadline.
 - Free-space reserve: ordinary workloads use at least 3 GiB or 10 percent of available space; sustained-only uses at least 1 GiB or 10 percent, in addition to the required file footprint.
@@ -165,7 +227,7 @@
 | Full applicable suite | 288 unique checks passed: 269 behavior checks, including 22 specification checks and nine volume tests, plus 19 WPF UI checks |
 | Sustained safety | Disposable tests use only 1 MiB per sustained run; cover cap, cancellation, consent and cleanup. No full-duration physical benchmark was run |
 | Screenshots | Actual WPF empty-state client renders at 1366 x 768 and 1800 x 1000; desktop benchmark inspected. Not installed-app or live-hardware validation |
-| WebView2 | Dedicated --web-ui verification pending; teardown emits Chrome_WidgetWin_0 unregister error 1412 even when the WPF suite passes |
+| Browser dependencies | Removed; dedicated --web-ui mode removed |
 | Vendor semantics | SATA 194/241/9 interpretations are conventional estimates, not verified vendor profiles |
 | Endurance | 600 TB is an unverified reference; actual manufacturer-rated TBW and confirmed NAND writes remain unavailable |
 | Sustained performance | Observed speed drop heuristic implemented; proven SLC exhaustion/post-cache device speed unverified |
@@ -195,7 +257,7 @@ dotnet artifacts/diagnostics-build/bin/pixinit.Tests/release/pixinit.Tests.dll -
 ## 12. What Is Needed for Good Architecture
 
 - Preserve MVVM, manual constructor composition, current provider separation and the shared gate. A DI container is optional, not a prerequisite for correctness.
-- Prioritize pending WebView2 lifecycle/runtime verification and real installer validation before claiming the HTML experience is verified.
+- Prioritize isolated installer/upgrade validation and physical Windows 11 mixed-disk verification.
 - Add verified vendor/model SMART interpretation and endurance-rating profiles; retain unknown fields and raw evidence when profiles are absent.
 - Design explicit, consented hardware validation for sustained behavior and known idle/load observations. Keep hard byte budgets and truthful cache limitations.
 - Keep measurement units, provenance, policy versions and unavailable states explicit in UI, persistence and reports.

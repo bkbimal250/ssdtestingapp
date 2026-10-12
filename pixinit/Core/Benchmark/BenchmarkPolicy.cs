@@ -15,6 +15,7 @@ public static class BenchmarkPolicy
     public static long SafetyMargin(long availableBytes, bool sustainedOnly = false) => Math.Max(sustainedOnly ? MinimumSustainedSafetyMarginBytes : MinimumSafetyMarginBytes, availableBytes / 10);
     public static void Validate(BenchmarkConfiguration c, long availableBytes, bool existingPreparedFile = false)
     {
+        if (c.Unbuffered) { DirectBenchmarkPolicy.Validate(c, availableBytes); return; }
         if (c.Operations == BenchmarkOperation.None) throw new InvalidOperationException("Select at least one benchmark operation.");
         if (c.FileSizeBytes is < 16 * MiB or > MaximumFileBytes) throw new InvalidOperationException("Test file size must be 16-1024 MiB.");
         if (c.SequentialBlockBytes is < 4096 or > 8 * 1_048_576 || c.FileSizeBytes % c.SequentialBlockBytes != 0) throw new InvalidOperationException("Sequential block size must be aligned, 4 KiB-8 MiB, and divide the file size.");

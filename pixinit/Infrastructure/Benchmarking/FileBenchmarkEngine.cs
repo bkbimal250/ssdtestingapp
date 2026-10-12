@@ -16,6 +16,11 @@ public sealed partial class FileBenchmarkEngine
     public async Task<BenchmarkSession> RunAsync(BenchmarkTarget target, BenchmarkConfiguration configuration, bool consentGranted,
         IProgress<BenchmarkProgress>? progress = null, CancellationToken token = default, OwnedFileRecord? preparedFile = null)
     {
+        if (configuration.Unbuffered)
+        {
+            if (preparedFile is not null) throw new InvalidOperationException("Unbuffered mode requires a newly prepared owned file.");
+            return await RunDirectAsync(target, configuration, consentGranted, progress, token);
+        }
         bool existing = preparedFile is not null && await files.IsOwnedAsync(preparedFile, token) && File.Exists(preparedFile.FilePath);
         BenchmarkPolicy.Validate(configuration, target.AvailableBytes, existing);
         bool consentRequired = configuration.HasWriteWork || (configuration.HasReadWork && !existing);
@@ -78,6 +83,7 @@ public sealed partial class FileBenchmarkEngine
             null, null, owned.FilePath, cleanup)
         {
             SafetyPolicy = "ordinary-3GiB-reserve-3GiB-sustained-32GiB-reserve-1GiB",
+            ValidationWarning = DirectBenchmarkPolicy.Plausibility(target, results),
             SustainedSamples = sustained?.Samples ?? [], SustainedWriteMBs = sustained?.PostDropMBs,
             ThroughputDropSecond = sustained?.DropSecond, SustainedStatus = sustained?.Status ?? "Not selected"
         };

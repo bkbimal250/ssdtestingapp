@@ -1,0 +1,264 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 1 /Kids [5 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 5271 >>
+stream
+0.12 0.24 0.42 rg 40 788 515 35 re f 1 1 1 rg BT /F2 16 Tf 52 801 Td (PIXINIT | Storage Evidence) Tj ET 0.12 0.18 0.27 rg BT /F1 10 Tf 13 TL 40 768 Td (Export UTC: 2026-10-12T08:44:54.0483689+00:00) Tj T* (Computer: TEST ONLY PC) Tj T* (OS: TEST ONLY OS) Tj T* (Evidence JSON SHA-256:) Tj T* (D4029609ED3D69F264D542B0C9E4481B7E8F827AEA018B1D1726ADF68C1027CB) Tj T* (QR identifier: PX:D4029609ED3D69) Tj T* (Scanned by PIXINIT. Reseller authorization not verified.) Tj T* (Authenticity and remaining lifetime are not established by this report.) Tj T* () Tj T* (Disk 0 | TEST ONLY SATA \(unqueried\) | 128.0 GB) Tj T* (Capacity: 119.21 GiB / 128.00 GB) Tj T* (Serial: TEST-SERIAL-001 | Firmware: Unavailable) Tj T* (Sata | Bus: Unknown | Media: Unknown) Tj T* (Access: Limited | ) Tj T* (Diagnostics: Not queried or unavailable. Health: Not assessed.) Tj T* (Limitations: ) Tj T* () Tj T* (Disk 1 | TEST ONLY RAID heuristic NVMe) Tj T* (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA) Tj T* (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA) Tj T* (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA) Tj T* (AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA | 512.0 GB) Tj T* (Capacity: 476.84 GiB / 512.00 GB) Tj T* (Serial: Test serial | Firmware: Unavailable) Tj T* (Nvme via RAID - Heuristic detection | Bus: Raid | Media: Unknown) Tj T* (Access: Limited | ) Tj T* (Diagnostics: Not queried or unavailable. Health: Not assessed.) Tj T* (Limitations: ) Tj T* () Tj T* (Benchmark: Not run in this report.) Tj ET
+52 108 3 3 re f
+55 108 3 3 re f
+58 108 3 3 re f
+61 108 3 3 re f
+64 108 3 3 re f
+67 108 3 3 re f
+70 108 3 3 re f
+79 108 3 3 re f
+82 108 3 3 re f
+85 108 3 3 re f
+94 108 3 3 re f
+97 108 3 3 re f
+100 108 3 3 re f
+103 108 3 3 re f
+106 108 3 3 re f
+109 108 3 3 re f
+112 108 3 3 re f
+52 105 3 3 re f
+70 105 3 3 re f
+79 105 3 3 re f
+82 105 3 3 re f
+85 105 3 3 re f
+94 105 3 3 re f
+112 105 3 3 re f
+52 102 3 3 re f
+58 102 3 3 re f
+61 102 3 3 re f
+64 102 3 3 re f
+70 102 3 3 re f
+76 102 3 3 re f
+82 102 3 3 re f
+88 102 3 3 re f
+94 102 3 3 re f
+100 102 3 3 re f
+103 102 3 3 re f
+106 102 3 3 re f
+112 102 3 3 re f
+52 99 3 3 re f
+58 99 3 3 re f
+61 99 3 3 re f
+64 99 3 3 re f
+70 99 3 3 re f
+82 99 3 3 re f
+94 99 3 3 re f
+100 99 3 3 re f
+103 99 3 3 re f
+106 99 3 3 re f
+112 99 3 3 re f
+52 96 3 3 re f
+58 96 3 3 re f
+61 96 3 3 re f
+64 96 3 3 re f
+70 96 3 3 re f
+88 96 3 3 re f
+94 96 3 3 re f
+100 96 3 3 re f
+103 96 3 3 re f
+106 96 3 3 re f
+112 96 3 3 re f
+52 93 3 3 re f
+70 93 3 3 re f
+94 93 3 3 re f
+112 93 3 3 re f
+52 90 3 3 re f
+55 90 3 3 re f
+58 90 3 3 re f
+61 90 3 3 re f
+64 90 3 3 re f
+67 90 3 3 re f
+70 90 3 3 re f
+76 90 3 3 re f
+82 90 3 3 re f
+88 90 3 3 re f
+94 90 3 3 re f
+97 90 3 3 re f
+100 90 3 3 re f
+103 90 3 3 re f
+106 90 3 3 re f
+109 90 3 3 re f
+112 90 3 3 re f
+76 87 3 3 re f
+79 87 3 3 re f
+88 87 3 3 re f
+52 84 3 3 re f
+55 84 3 3 re f
+58 84 3 3 re f
+64 84 3 3 re f
+67 84 3 3 re f
+70 84 3 3 re f
+73 84 3 3 re f
+76 84 3 3 re f
+82 84 3 3 re f
+88 84 3 3 re f
+91 84 3 3 re f
+94 84 3 3 re f
+106 84 3 3 re f
+52 81 3 3 re f
+58 81 3 3 re f
+61 81 3 3 re f
+76 81 3 3 re f
+88 81 3 3 re f
+91 81 3 3 re f
+94 81 3 3 re f
+100 81 3 3 re f
+103 81 3 3 re f
+106 81 3 3 re f
+55 78 3 3 re f
+70 78 3 3 re f
+73 78 3 3 re f
+76 78 3 3 re f
+79 78 3 3 re f
+82 78 3 3 re f
+88 78 3 3 re f
+91 78 3 3 re f
+94 78 3 3 re f
+100 78 3 3 re f
+106 78 3 3 re f
+109 78 3 3 re f
+112 78 3 3 re f
+55 75 3 3 re f
+64 75 3 3 re f
+67 75 3 3 re f
+73 75 3 3 re f
+76 75 3 3 re f
+79 75 3 3 re f
+85 75 3 3 re f
+91 75 3 3 re f
+97 75 3 3 re f
+100 75 3 3 re f
+103 75 3 3 re f
+109 75 3 3 re f
+61 72 3 3 re f
+67 72 3 3 re f
+70 72 3 3 re f
+76 72 3 3 re f
+82 72 3 3 re f
+85 72 3 3 re f
+88 72 3 3 re f
+91 72 3 3 re f
+100 72 3 3 re f
+103 72 3 3 re f
+112 72 3 3 re f
+76 69 3 3 re f
+85 69 3 3 re f
+100 69 3 3 re f
+103 69 3 3 re f
+106 69 3 3 re f
+52 66 3 3 re f
+55 66 3 3 re f
+58 66 3 3 re f
+61 66 3 3 re f
+64 66 3 3 re f
+67 66 3 3 re f
+70 66 3 3 re f
+76 66 3 3 re f
+82 66 3 3 re f
+85 66 3 3 re f
+88 66 3 3 re f
+100 66 3 3 re f
+109 66 3 3 re f
+112 66 3 3 re f
+52 63 3 3 re f
+70 63 3 3 re f
+76 63 3 3 re f
+82 63 3 3 re f
+91 63 3 3 re f
+97 63 3 3 re f
+52 60 3 3 re f
+58 60 3 3 re f
+61 60 3 3 re f
+64 60 3 3 re f
+70 60 3 3 re f
+76 60 3 3 re f
+85 60 3 3 re f
+88 60 3 3 re f
+91 60 3 3 re f
+100 60 3 3 re f
+106 60 3 3 re f
+112 60 3 3 re f
+52 57 3 3 re f
+58 57 3 3 re f
+61 57 3 3 re f
+64 57 3 3 re f
+70 57 3 3 re f
+79 57 3 3 re f
+85 57 3 3 re f
+91 57 3 3 re f
+100 57 3 3 re f
+52 54 3 3 re f
+58 54 3 3 re f
+61 54 3 3 re f
+64 54 3 3 re f
+70 54 3 3 re f
+76 54 3 3 re f
+79 54 3 3 re f
+82 54 3 3 re f
+85 54 3 3 re f
+88 54 3 3 re f
+94 54 3 3 re f
+100 54 3 3 re f
+106 54 3 3 re f
+112 54 3 3 re f
+52 51 3 3 re f
+70 51 3 3 re f
+76 51 3 3 re f
+79 51 3 3 re f
+82 51 3 3 re f
+91 51 3 3 re f
+97 51 3 3 re f
+103 51 3 3 re f
+109 51 3 3 re f
+52 48 3 3 re f
+55 48 3 3 re f
+58 48 3 3 re f
+61 48 3 3 re f
+64 48 3 3 re f
+67 48 3 3 re f
+70 48 3 3 re f
+76 48 3 3 re f
+82 48 3 3 re f
+91 48 3 3 re f
+97 48 3 3 re f
+100 48 3 3 re f
+103 48 3 3 re f
+109 48 3 3 re f
+112 48 3 3 re f
+BT /F1 8 Tf 140 75 Td (QR identifies evidence hash; not an authenticity seal.) Tj ET
+BT /F1 8 Tf 40 20 Td (PIXINIT evidence | page 1 | UTC observations retained) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000183 00000 n 
+0000000258 00000 n 
+0000000394 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+5717
+%%EOF

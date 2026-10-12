@@ -1,5 +1,7 @@
 # SSD specification implementation - 2026-10-07
 
+Current benchmark update (2026-10-09): timed native unbuffered profiles and 337 passing checks. Release qualification remains PARTIAL. See [latest validation](unbuffered-benchmark-validation.md). Earlier buffered-only descriptions apply to legacy mode.
+
 ## Inputs and scope
 - Read PROJECT_SUMMARY_FOR_AI.md, SYSTEM_DESIGN_SDE2.md and the supplied SSD Specifications (1).pdf.
 - Preserve the existing session model, MVVM, C#/WPF, SQLite, owned-file cleanup and read-only diagnostic transports.

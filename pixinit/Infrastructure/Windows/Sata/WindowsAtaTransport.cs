@@ -17,13 +17,13 @@ internal static class SataIdentityGuard
 {
     internal static void RequireSata(StorageDevice device)
     {
-        if (device.Protocol != StorageProtocol.Sata || device.Bus != ConnectionBus.Sata || device.NativeBusType != 11 || string.IsNullOrWhiteSpace(device.InterfacePath))
+        if (!device.CanQuerySata || string.IsNullOrWhiteSpace(device.InterfacePath))
             throw new AtaTransportException(AtaOutcome.Unsupported, "ATA dispatch requires a confirmed direct SATA interface. NVMe, USB, RAID and unknown devices are rejected.");
     }
     internal static void Validate(StorageDevice selected, StorageDevice current)
     {
         RequireSata(selected); RequireSata(current);
-        if (!string.Equals(selected.InterfacePath, current.InterfacePath, StringComparison.OrdinalIgnoreCase) ||
+        if (selected.Bus != current.Bus || selected.NativeBusType != current.NativeBusType || !string.Equals(selected.InterfacePath, current.InterfacePath, StringComparison.OrdinalIgnoreCase) ||
             (selected.DiskNumber is not null && selected.DiskNumber != current.DiskNumber) ||
             string.IsNullOrWhiteSpace(current.Model) || !string.Equals(selected.Model.Trim(), current.Model.Trim(), StringComparison.Ordinal) ||
             (!string.IsNullOrWhiteSpace(selected.Serial) && !string.Equals(selected.Serial.Trim(), current.Serial?.Trim(), StringComparison.Ordinal)) ||
@@ -66,7 +66,7 @@ internal sealed class WindowsAtaTransport : IAtaTransport
                 token.ThrowIfCancellationRequested();
                 if (length is < 0 or > DescriptorParser.MaxBuffer) throw new System.IO.InvalidDataException("Metadata allocation limit.");
                 var output = new byte[length];
-                if (!StorageNative.DeviceIoControl(handle, code, input, (uint)(input?.Length ?? 0), output, (uint)length, out uint returned, IntPtr.Zero)) throw StorageNative.Error("Identity revalidation query");
+                if (!StorageNative.DeviceIoControl(handle, code, input, code == 0x0004D02C ? AtaCommandPolicy.HeaderSize : (uint)(input?.Length ?? 0), output, (uint)length, out uint returned, IntPtr.Zero)) throw StorageNative.Error("Identity revalidation query");
                 if (returned > length) throw new System.IO.InvalidDataException("Identity returned length invalid.");
                 return output[..(int)returned];
             }

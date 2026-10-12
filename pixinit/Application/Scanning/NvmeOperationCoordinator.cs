@@ -8,7 +8,7 @@ public sealed class NvmeOperationCoordinator(INvmeDiagnosticsProvider provider, 
 {
     public async Task<NvmeDiagnostics> ReadAsync(StorageDevice device, CancellationToken token, IProgress<string>? progress = null)
     {
-        if (device.Protocol != StorageProtocol.Nvme || device.Bus != ConnectionBus.Nvme || device.NativeBusType != 17)
+        if (!device.CanQueryNvme)
             throw new InvalidOperationException("Only confirmed NVMe devices can receive NVMe diagnostics.");
         using (gate.Enter())
         {

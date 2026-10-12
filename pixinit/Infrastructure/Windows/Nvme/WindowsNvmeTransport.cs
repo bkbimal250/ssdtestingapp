@@ -13,19 +13,19 @@ internal interface INvmeTransport { NvmeResponse Query(StorageDevice device, Nvm
 internal static class NvmeQueryPolicy
 {
     internal static int Length(NvmeOperation op) => op switch { NvmeOperation.Controller or NvmeOperation.Namespace => 4096, NvmeOperation.Health or NvmeOperation.Errors => 512, _ => throw new ArgumentOutOfRangeException(nameof(op)) };
-    internal static byte[] Request(NvmeOperation op, uint ns = 0)
+    internal static byte[] Request(NvmeOperation op, uint ns = 0, bool raid = false)
     {
         if ((op == NvmeOperation.Namespace && ns is 0 or uint.MaxValue) || (op != NvmeOperation.Namespace && ns != 0)) throw new InvalidDataException("Invalid query namespace scope.");
         var b = new byte[48 + Length(op)];
         void W(int o, uint v) => BinaryPrimitives.WriteUInt32LittleEndian(b.AsSpan(o), v);
-        W(0, op is NvmeOperation.Namespace or NvmeOperation.Health ? 50U : 49U); // device vs adapter protocol property
+        W(0, raid || op is NvmeOperation.Namespace or NvmeOperation.Health ? 50U : 49U); // device vs adapter protocol property
         W(8, 3); W(12, op is NvmeOperation.Controller or NvmeOperation.Namespace ? 1U : 2U);
         W(16, op switch { NvmeOperation.Controller => 1, NvmeOperation.Namespace => 0, NvmeOperation.Health => 2, _ => 1 });
         W(20, ns); W(24, 40); W(28, (uint)Length(op));
         return b;
     }
-    internal static void ValidateRequest(NvmeOperation op, byte[] b, uint ns = 0)
-    { if (!Request(op, ns).AsSpan().SequenceEqual(b)) throw new InvalidDataException("NVMe read-query allowlist violation."); }
+    internal static void ValidateRequest(NvmeOperation op, byte[] b, uint ns = 0, bool raid = false)
+    { if (!Request(op, ns, raid).AsSpan().SequenceEqual(b)) throw new InvalidDataException("NVMe read-query allowlist violation."); }
     internal static NvmeOutcome Error(int e) => e switch { 5 => NvmeOutcome.AccessDenied, 1 or 50 => NvmeOutcome.Unsupported, 2 or 21 or 1167 => NvmeOutcome.Disconnected, _ => NvmeOutcome.Failed };
     internal static string Scope(NvmeOperation op, uint ns = 0) => op switch
     {
@@ -51,8 +51,8 @@ internal static class NvmeQueryPolicy
 internal static class NvmeIdentityGuard
 {
     internal static void Require(StorageDevice d)
-    { if (d.Protocol != StorageProtocol.Nvme || d.Bus != ConnectionBus.Nvme || d.NativeBusType != 17 || string.IsNullOrWhiteSpace(d.InterfacePath)) throw new InvalidOperationException("Only a confirmed direct NVMe interface can receive NVMe queries."); }
-    internal static bool Matches(StorageDevice a, StorageDevice b) => b.Protocol == StorageProtocol.Nvme && b.Bus == ConnectionBus.Nvme && b.NativeBusType == 17 &&
+    { if (!d.CanQueryNvme || string.IsNullOrWhiteSpace(d.InterfacePath)) throw new InvalidOperationException("Only a confirmed direct NVMe interface can receive NVMe queries."); }
+    internal static bool Matches(StorageDevice a, StorageDevice b) => b.CanQueryNvme && a.Bus == b.Bus && a.NativeBusType == b.NativeBusType &&
         string.Equals(a.InterfacePath, b.InterfacePath, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.Model) && a.Model.Trim() == b.Model.Trim() &&
         (a.DiskNumber is null || a.DiskNumber == b.DiskNumber) && (string.IsNullOrWhiteSpace(a.Serial) || a.Serial.Trim() == b.Serial?.Trim()) &&
         (a.Firmware is null || a.Firmware == b.Firmware) && (a.CapacityBytes is null || a.CapacityBytes == b.CapacityBytes);
@@ -64,7 +64,7 @@ internal sealed class WindowsNvmeTransport : INvmeTransport
     public NvmeResponse Query(StorageDevice device, NvmeOperation op, CancellationToken token, uint namespaceId = 0)
     {
         NvmeIdentityGuard.Require(device);
-        var request = NvmeQueryPolicy.Request(op, namespaceId); NvmeQueryPolicy.ValidateRequest(op, request, namespaceId);
+        var request = NvmeQueryPolicy.Request(op, namespaceId, device.RaidProtocolVerified); NvmeQueryPolicy.ValidateRequest(op, request, namespaceId, device.RaidProtocolVerified);
         NvmeResponse Fail(NvmeOutcome status, string reason) => new(op, status, reason, [], DateTimeOffset.UtcNow, NvmeQueryPolicy.Scope(op, namespaceId));
         if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.X64) return Fail(NvmeOutcome.Unsupported, "Validated transport requires Windows x64.");
         token.ThrowIfCancellationRequested();
@@ -89,6 +89,7 @@ internal sealed class WindowsNvmeTransport : INvmeTransport
         Interlocked.Increment(ref dispatchCount);
         bool ok = StorageNative.DeviceIoControl(handle, StorageNative.QueryProperty, request, (uint)request.Length, result, (uint)result.Length, out uint returned, IntPtr.Zero);
         int error = ok ? 0 : Marshal.GetLastWin32Error();
-        return NvmeQueryPolicy.Validate(op, result, returned, ok, error, namespaceId);
+        var response = NvmeQueryPolicy.Validate(op, result, returned, ok, error, namespaceId);
+        return device.RaidProtocolVerified ? response with { Scope = "Selected RAID-presented disk through device protocol property; RAID driver controller/namespace scope is not independently established" } : response;
     }
 }

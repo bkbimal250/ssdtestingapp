@@ -121,3 +121,19 @@ dotnet artifacts/diagnostics-build/bin/pixinit.Tests/release/pixinit.Tests.dll -
 - Release: 0 warnings/errors; all 310 checks passed. Existing minimum-width SATA virtualization and keyboard checks passed. Logs: artifacts/verification/smart-layout-build.log and smart-layout-tests.log.
 - Actual WPF fixture captures: docs/screenshots/smart-nvme-1366x768.png and smart-nvme-1800x1000.png. Synthetic readings are explicitly labeled; no physical diagnostic or benchmark run. DPI scaling, screen reader and broader hardware compatibility remain unverified.
 - Manifest, WebView2, provider logic and measurement calculations unchanged. Existing installer predates this UI pass and was not rebuilt.
+
+## Three-column Entire SSD Info layout
+
+- The Overview card now uses three equal-width columns. All 16 existing identity and diagnostic rows remain, distributed in order as 6, 5 and 5 rows to reduce vertical height. Values continue to wrap and the layout keeps existing spacing and card styling.
+- Build verification is pending for this layout update.
+
+
+## Duplicate overview control removed
+
+- Removed the Additional diagnostic overview Expander from both SATA and NVMe Overview XAML. FirstPageView remains the visible overview. No diagnostic models, services, queries or stored data were changed.
+
+
+## SATA/NVMe header cleanup
+
+- Removed protocol, media type and metadata access badges plus the media identification evidence expander from the visible SATA and NVMe device headers. Discovery properties and evidence remain in the application models and other diagnostic views.
+- Centered header and tab content with a 1500-DIP maximum width. Smaller displays use their full available width.

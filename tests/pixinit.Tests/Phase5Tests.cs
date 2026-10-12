@@ -1,13 +1,11 @@
 using System.IO;
 using System.Numerics;
 using System.Text.Json;
-using Microsoft.Data.Sqlite;
 using pixinit.Application.Reporting;
 using pixinit.Core.Assessment;
 using pixinit.Core.Diagnostics.Nvme;
 using pixinit.Core.Diagnostics.Sata;
 using pixinit.Core.History;
-using pixinit.Infrastructure.History;
 using pixinit.Infrastructure.Windows.Sata;
 
 namespace pixinit.Tests;
@@ -56,32 +54,9 @@ internal static partial class Program
         string root = Path.Combine(Path.GetTempPath(), "pixinit-phase5-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
         try
         {
-            string db = Path.Combine(root, "history.db"); var store = new SqliteHistoryStore(db); await store.InitializeAsync();
-            Check(await store.GetRetentionDaysAsync() == 2, "SQLite schema creates original two-day retention default");
             var snapshot = SnapshotFactory.Create(Guid.NewGuid(), SyntheticNvme(), healthy);
             Check(snapshot.Metrics.Single(m => m.Key == "nvme.composite_temperature").ValueText == healthy.Temperature.Value!.Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "Snapshot retains invariant round-trip precision for converted metrics");
             var huge = BigInteger.One << 100; snapshot = snapshot with { Metrics = snapshot.Metrics.Append(new("test.uint128", huge.ToString(), "count", "Available", "Synthetic", snapshot.ObservedAtUtc, snapshot.Scope)).ToArray() };
-            await store.SaveAsync(snapshot); var loaded = await store.LoadAsync(snapshot.Id);
-            Check(loaded?.Metrics.Single(m => m.Key == "test.uint128").ValueText == huge.ToString(), "BigInteger database round-trip is lossless decimal text");
-            Check(loaded!.Queries.Any(q => q.Raw.Length > 0), "Raw payloads survive SQLite round-trip");
-            Check((await store.ListAsync()).Single().CompletionState == "Completed", "Historical row is explicitly completed and distinct from live state");
-            var cancelled = SnapshotFactory.CreateAttempt(Guid.NewGuid(), SyntheticNvme(), "Cancelled", "Synthetic cancellation");
-            var partial = SnapshotFactory.Create(Guid.NewGuid(), SyntheticNvme(), missing);
-            await store.SaveAsync(cancelled); await store.SaveAsync(partial);
-            var explicitStates = await store.ListAsync();
-            Check(explicitStates.Any(r => r.Id == cancelled.Id && r.CompletionState == "Cancelled" && r.Assessment == "Unknown") && explicitStates.Any(r => r.Id == partial.Id && r.CompletionState == "Partial"), "Partial and cancelled sessions are persisted explicitly and never labelled completed");
-            Check((await store.ListAsync(protocol: "Nvme", deviceKey: snapshot.Device.MatchKey)).All(r => r.Protocol == "Nvme" && r.IdentityReliable), "History filtering uses protocol and reliable device identity");
-            var restarted = new SqliteHistoryStore(db); await restarted.InitializeAsync(); Check((await restarted.LoadAsync(snapshot.Id)) is not null, "History reopens after store restart");
-            var rollback = new SqliteHistoryStore(Path.Combine(root, "rollback.db")); await rollback.InitializeAsync(); rollback.FailAfterSessionInsertForTest = true;
-            bool failed = false; try { await rollback.SaveAsync(snapshot with { Id = Guid.NewGuid() }); } catch (InvalidOperationException) { failed = true; }
-            Check(failed && await rollback.CountAsync() == 0, "Snapshot transaction rolls back after forced failure");
-            string futureDb = Path.Combine(root, "future.db"); await using (var c = new SqliteConnection($"Data Source={futureDb}")) { await c.OpenAsync(); await new SqliteCommand("PRAGMA user_version=99;", c).ExecuteNonQueryAsync(); }
-            failed = false; try { await new SqliteHistoryStore(futureDb).InitializeAsync(); } catch (InvalidOperationException) { failed = true; }
-            Check(failed && File.Exists(futureDb), "Unsupported migration fails without deleting database");
-            var cleanupNow = DateTimeOffset.UtcNow;
-            var old = snapshot with { Id = Guid.NewGuid(), ObservedAtUtc = cleanupNow.AddDays(-2) }; await store.SaveAsync(old);
-            var boundary = snapshot with { Id = Guid.NewGuid(), ObservedAtUtc = cleanupNow.AddDays(-1) }; await store.SaveAsync(boundary);
-            int removed = await store.CleanupAsync(cleanupNow, 1); Check(removed == 1 && await store.LoadAsync(boundary.Id) is not null, "Retention removes only records strictly older than cutoff transactionally");
             var unreliable = snapshot with { Id = Guid.NewGuid(), Device = snapshot.Device with { IdentityReliable = false, MatchKey = null }, ObservedAtUtc = snapshot.ObservedAtUtc.AddMinutes(1) };
             Check(SnapshotComparison.Compare(snapshot, unreliable).Count == 0, "Ambiguous identities disable automatic comparison");
             var next = snapshot with { Id = Guid.NewGuid(), ObservedAtUtc = snapshot.ObservedAtUtc.AddMinutes(2), Metrics = snapshot.Metrics.Select(m => m.Key == "test.uint128" ? m with { ValueText = (huge + 7).ToString() } : m).ToArray() };
@@ -98,10 +73,9 @@ internal static partial class Program
             Check(sharedText.Contains(snapshot.Device.Serial!) && sharedText.Contains(Convert.ToBase64String(snapshot.Queries[0].Raw)) && sharedText.Contains("RawPayloadsIncluded\": true"), "Explicit export options can retain serial and include clearly labelled raw payloads");
             Check(txtText.Contains("INCONCLUSIVE") == (snapshot.Assessment.Checklist == ChecklistResult.Inconclusive) && txtText.Contains(snapshot.RuleSetVersion), "TXT export preserves original assessment and rule version");
             bool invalidPath = false; try { await DiagnosticReportExporter.ExportJsonAsync(snapshot, Path.Combine(root, "missing", "a.json"), new()); } catch (DirectoryNotFoundException) { invalidPath = true; }
-            Check(invalidPath && File.Exists(db), "Invalid export destination does not affect stored snapshot");
-            var badStore = new SqliteHistoryStore(root); bool dbFailure = false; try { await badStore.InitializeAsync(); } catch { dbFailure = true; }
-            Check(dbFailure && healthy.Assessment is not null, "Database failure leaves live diagnostic assessment usable");
+            Check(invalidPath && snapshot.Metrics.Count > 0, "Invalid report destination leaves current in-memory evidence intact");
+
         }
-        finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
+        finally { Directory.Delete(root, true); }
     }
 }

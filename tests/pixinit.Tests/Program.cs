@@ -31,7 +31,11 @@ internal static partial class Program
     {
         try
         {
-            if (args.Contains("--web-ui")) { WebUiTests(); Console.WriteLine($"All {passed} WebView checks passed."); return 0; }
+            if (args.Contains("--no-persistence-only")) { NoPersistenceTests().GetAwaiter().GetResult(); Console.WriteLine($"All {passed} no-persistence checks passed."); return 0; }
+            if (args.Contains("--revamp")) { BenchmarkRevampTests().GetAwaiter().GetResult(); Console.WriteLine($"All {passed} benchmark presentation checks passed."); return 0; }
+            if (args.Contains("--ui-only")) { UiTests(); Console.WriteLine($"All {passed} WPF UI checks passed."); return 0; }
+            if (args.Contains("--discovery-only")) { foreach (var d in new WindowsDiskDiscovery().DiscoverAsync(default).GetAwaiter().GetResult()) Console.WriteLine($"{d.Model}: {d.PcieLinkDisplay}; source: {d.PcieLinkSource ?? "Not reported"}"); return 0; }
+            NoPersistenceTests().GetAwaiter().GetResult();
             SelectionTests();
             StateTests().GetAwaiter().GetResult();
             DiscoveryTests();
@@ -46,6 +50,9 @@ internal static partial class Program
             StorageSpecsTests().GetAwaiter().GetResult();
             StorageOverviewTests().GetAwaiter().GetResult();
             CompanyWorkflowTests().GetAwaiter().GetResult();
+            UnbufferedBenchmarkTests().GetAwaiter().GetResult();
+            AccurateResultTests().GetAwaiter().GetResult();
+            BenchmarkRevampTests().GetAwaiter().GetResult();
             if (args.Contains("--hardware")) HardwareTests();
             else if (args.Contains("--ui")) UiTests();
             Console.WriteLine($"All {passed} checks passed.");
@@ -121,10 +128,15 @@ internal static partial class Program
         var window = new pixinit.MainWindow(vm);
         window.Show(); Pump();
         Check(window.IsVisible, "Actual WPF window starts");
+        Check(!Find<Button>(window).Any(b => b.Content?.ToString()?.StartsWith("Export", StringComparison.OrdinalIgnoreCase) == true), "Shell exposes no proof, PDF, QR or JSON export buttons");
+        var navigationLists = Find<ListBox>(window).Where(b => b.GetBindingExpression(ItemsControl.ItemsSourceProperty)?.ParentBinding.Path?.Path == "AllDevices").ToArray();
+        Check(navigationLists.Length >= 1 && navigationLists.All(b => b.GetBindingExpression(System.Windows.Controls.Primitives.Selector.SelectedItemProperty)?.ParentBinding.Path?.Path == "SelectedDisk"), "Diagnostics sidebar uses the complete physical inventory and shared disk selector");
+
         Console.WriteLine($"Host DPI: {VisualTreeHelper.GetDpi(window).PixelsPerInchX}; work area: {SystemParameters.WorkArea}");
         var tabs = (TabControl)window.FindName("ProtocolTabs");
-        Check(tabs.Items.Count == 2, "Both empty protocol tabs remain visible");
+        Check(tabs.Items.Count == 2, "Only SATA and NVMe protocol tabs remain; duplicate device overview removed");
         var sataSections = Find<pixinit.Views.Sata.SataView>(window).SelectMany(Find<TabControl>).Single();
+        Check(!Find<Button>(window).Any(b => Equals(b.Content, "Capture Idle") || Equals(b.Content, "Capture Load")), "Diagnostic overview has no temperature capture controls");
         Check(sataSections.Items.Count == 3, "SATA retains Overview, SMART, and Details navigation");
         window.Width = 1280; window.Height = 700; Pump();
         Capture(window, "sata-laptop.png");
@@ -140,19 +152,30 @@ internal static partial class Program
         Check(Keyboard.FocusedElement is not null, "Keyboard focus traversal remains available");
         var benchmark = (TabItem)window.FindName("BenchmarkTab"); benchmark.IsSelected = true;
         window.Width = 1366; window.Height = 768; Pump(); Capture(window, "phase7-responsive-1366x768.png");
-        Check(Find<TextBlock>(window).Any(t => t.Text.StartsWith("Buffered filesystem benchmark")), "Benchmark limitation stays visible in its tab");
-        Check(Find<TextBlock>(window).Count(t => new[] { "Sequential read", "Sequential write", "Random read", "Random write", "Sustained average" }.Contains(t.Text)) == 5 && Find<ComboBox>(window).Any(c => c.Items.Contains(1024)), "Five performance cards and the largest selectable file size render at laptop width");
-        Check(Find<TextBlock>(window).Any(t => t.Text.StartsWith("Idle: Unavailable")) && Find<TextBlock>(window).Any(t => t.Text.StartsWith("Load: Unavailable")) && Find<TextBlock>(window).Any(t => t.Text == "Reference allowance unavailable"), "Missing diagnostic context displays explicit unavailable thermal and endurance fields");
-        Check(Find<ScrollViewer>(window).Any(v => v.ScrollableHeight > 0) && Find<Button>(window).Any(b => Equals(b.Content, "Export benchmark JSON")), "Laptop benchmark overflow and export controls remain scrollable");
+        Check(Find<TextBlock>(window).Any(t => t.Text.StartsWith("Unbuffered file benchmark")), "Benchmark limitation stays visible in its tab");
+        var advanced = Find<Expander>(window).Single(e => Equals(e.Header, "Advanced"));
+        Check(!advanced.IsExpanded, "Benchmark opens with Advanced collapsed");
+        advanced.IsExpanded = true; Pump();
+        Check(Find<TextBlock>(window).Count(t => new[] { "Sequential read", "Sequential write", "Random read", "Random write", "Sustained average" }.Contains(t.Text)) == 5 && Find<Button>(window).Any(b => Equals(b.Content, "1024 MiB")), "Five performance cards and segmented file sizes remain reachable at laptop width");
+        advanced.IsExpanded = false; Pump();
+        Check(!Find<Button>(window).Any(b => System.Windows.Automation.AutomationProperties.GetName(b).StartsWith("Capture ") || Equals(b.Content, "Cancel capture")) && Find<TextBlock>(window).Any(t => t.Text == "Temperature"), "Benchmark retains current temperature card without manual capture controls");
+        Check(Find<ScrollViewer>(window).Any(v => v.ScrollableHeight > 0) && !Find<Button>(window).Any(b => Equals(b.Content, "Export benchmark JSON")) && !Find<Expander>(window).Any(e => e.Header?.ToString()?.StartsWith("Exact per-pass") == true || e.Header?.ToString()?.StartsWith("Historical benchmarks") == true), "Laptop benchmark remains scrollable without the removed detail/export footer");
         window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "phase7-responsive-desktop.png");
         Check(Find<Button>(window).Where(b => b.IsVisible).All(b => b.ActualWidth > 0 && b.ActualHeight > 0), "Benchmark controls retain accessible size on the desktop layout");
+        var benchmarkView = Find<pixinit.Views.Benchmark.BenchmarkView>(window).Single();
+        var benchmarkScroll = Find<ScrollViewer>(window).Single(v => v.Content == benchmarkView);
+        var cards = (System.Windows.Controls.Primitives.UniformGrid)benchmarkView.FindName("PerformanceCards");
+        benchmarkScroll.ScrollToVerticalOffset(cards.TransformToAncestor(benchmarkView).Transform(new Point()).Y); Pump();
+        Capture(window, "benchmark-cards-1800x1000.png");
+        window.Width = 1366; window.Height = 768; Pump(); Capture(window, "benchmark-cards-1366x768.png");
+        window.Width = 760; window.Height = 640; Pump(); Capture(window, "benchmark-minimum.png");
+        Check(cards.Columns <= 3 && ((System.Windows.Controls.Primitives.UniformGrid)benchmarkView.FindName("ContextCards")).Columns == 1 && benchmarkScroll.ScrollableHeight > 0, "Benchmark cards adapt and context stacks at the practical minimum width");
+        window.Width = 1800; window.Height = 1000; benchmarkScroll.ScrollToTop(); Pump();
         var workspace = (TabControl)window.FindName("WorkspaceTabs");
-        vm.HistoryVisible = true; Pump(); Capture(window, "workspace-history-desktop.png");
-        Check(vm.HistoryVisible && Find<Button>(window).Any(b => Equals(b.Content, "Export History")), "Diagnostic history opens from a small export action inside Benchmark");
-        vm.HistoryVisible = false;
+        Check(!Find<TextBlock>(window).Any(t => t.Text == "Historical diagnostic snapshots") && !Find<Button>(window).Any(b => Equals(b.Content, "Close history")), "History popup and actions are completely removed");
         workspace.SelectedIndex = 0; Pump();
         workspace.SelectedIndex = 2; Pump();
-        Check(workspace.Items.Count == 3 && Find<Expander>(window).Any(e => Equals(e.Header, "Other / Unidentified · 0")), "Other / Unidentified has its own third tab beside Benchmark");
+        Check(workspace.Items.Count == 3 && Find<Expander>(window).Any(e => Equals(e.Header, "Additional Devices · 0")), "Additional Devices retains its own tab and hides when empty");
         Capture(window, "other-unidentified-tab-desktop.png");
         var unidentifiedSection = (Expander)window.FindName("UnidentifiedDevicesSection");
         unidentifiedSection.IsExpanded = true; Pump();
@@ -194,6 +217,21 @@ internal static partial class Program
         detailsScroll.ScrollToVerticalOffset(thermalHeading.TransformToAncestor((Visual)detailsScroll.Content).Transform(new Point()).Y - 12); Pump(); Capture(window, "details-nvme-thermal-desktop.png");
         detailFixture.SetDevice(null); Pump();
         Check(detailFixture.ExactCounterRows.All(r => r.Value.StartsWith("N/A")) && detailFixture.UnavailableSensors == "Unavailable 8", "Details device switch clears counter and thermal evidence without zero filling");
+        nvmeSections.SelectedIndex = 0;
+        var deviceNavigation = Find<ListBox>(window).Single(list => System.Windows.Automation.AutomationProperties.GetName(list) == "All detected disks in NVMe diagnostics");
+        deviceNavigation.ItemsSource = new[] { fixtureDevice }; deviceNavigation.SelectedIndex = 0; Pump();
+        detailFixture.SetDevice(fixtureDevice); detailFixture.Apply(fixtureResult); nvmeView.DataContext = detailFixture;
+        var emptyNavigationLabel = Find<TextBlock>(window).Single(text => text.Text == "No NVMe devices discovered");
+        emptyNavigationLabel.Visibility = Visibility.Collapsed;
+        window.Width = 1366; window.Height = 768; Pump(); Capture(window, "diagnostic-layout-laptop.png");
+        var identityCard = Find<Border>(nvmeView).First(border => border.Child is DockPanel);
+        Check(identityCard.ActualWidth > nvmeView.ActualWidth * .9 && nvmeSections.ActualWidth > nvmeView.ActualWidth * .9, "Diagnostic header and sections consistently fill the laptop content pane");
+        var navigationItem = Find<ListBoxItem>(deviceNavigation).Single();
+        Check(navigationItem.ActualWidth > deviceNavigation.ActualWidth * .85, "Selected device card fills the navigation rail instead of wrapping one concatenated label");
+        window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "diagnostic-layout-desktop.png");
+        window.Width = 760; window.Height = 640; Pump(); Capture(window, "diagnostic-layout-minimum.png");
+        Check(identityCard.ActualWidth <= nvmeView.ActualWidth && nvmeSections.ActualWidth <= nvmeView.ActualWidth, "Diagnostic header and sections stay bounded at minimum width");
+        deviceNavigation.ItemsSource = null; emptyNavigationLabel.ClearValue(UIElement.VisibilityProperty);
         nvmeView.DataContext = vm.Nvme; Pump();
         nvmeSections.SelectedIndex = 2; Pump();
         Check(!Find<TabItem>(window).Any(t => t.Header?.ToString()?.Contains("Raw Data", StringComparison.Ordinal) == true), "Raw Data is removed from diagnostic navigation");
@@ -244,3 +282,5 @@ internal static partial class Program
         public Task<IReadOnlyList<StorageDevice>> DiscoverAsync(CancellationToken cancellationToken) => Completion.Task.WaitAsync(cancellationToken);
     }
 }
+
+

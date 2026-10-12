@@ -1,6 +1,8 @@
 # PIXINIT installation and release guide
 
-Current release candidate: 1.0.0, Windows x64, 2026-10-08. Qualification: PARTIAL.
+Current benchmark update (2026-10-09): timed native unbuffered profiles and 337 passing checks. Release qualification remains PARTIAL. See [latest validation](unbuffered-benchmark-validation.md). Earlier buffered-only descriptions apply to legacy mode.
+
+Current release candidate: 1.0.0, Windows x64, 2026-10-09. Qualification: PARTIAL.
 
 ## Package and requirements
 - Installer: `artifacts/installer/PIXINIT-Setup-1.0.0-win-x64.exe`.
@@ -8,7 +10,7 @@ Current release candidate: 1.0.0, Windows x64, 2026-10-08. Qualification: PARTIA
 - The Windows x64 package includes its .NET runtime. No separate .NET installation is required to run the packaged application.
 - The installer and application request administrator elevation under the existing manifest. Windows may ask for administrator credentials.
 - The installer and application are unsigned. No self-signed trust certificate is installed.
-- The optional HTML overview uses an installed Microsoft Edge WebView2 Runtime. Native WPF presentation remains the fallback when WebView2 is unavailable. This package does not install the WebView2 Runtime.
+- Current release is pure WPF, self-contained .NET 8. No separate .NET or browser runtime installation is required. Native runtime libraries extract under TEMP at startup.
 - Windows 11, other controllers and enterprise application-control policies remain unverified. See [compatibility](compatibility.md).
 
 ## Install
@@ -25,7 +27,7 @@ The current navigation is Diagnostics, Benchmark, Other / Unidentified. SATA and
 
 ## Upgrade and uninstall
 - Close PIXINIT and run the new installer. The application uses a stable Inno Setup AppId. Upgrades from earlier per-user packages still need isolated validation; automatic migration is not claimed.
-- Writable history and WebView2 data stay under `%LocalAppData%\PIXINIT`, in the profile used to run the application. Supplying credentials for another administrator may use that administrator's profile.
+- Writable history/settings stay under `%LocalAppData%\PIXINIT`, in the profile used to run the application. Supplying credentials for another administrator may use that administrator's profile.
 - Uninstall through Windows Settings > Apps > PIXINIT > Uninstall. User history/settings are preserved by default; uninstall does not deliberately delete the profile data directory.
 - This build has not been installed, upgraded or uninstalled in an isolated machine. Existing installation evidence belongs to earlier builds and is not qualification for this package.
 

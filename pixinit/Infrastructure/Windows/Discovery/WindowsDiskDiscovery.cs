@@ -23,7 +23,14 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
         if (!IsAvailable) throw new PlatformNotSupportedException(UnavailableReason);
         try { return Task.FromResult(Discover(cancellationToken)); }
         catch (OperationCanceledException) { DiscoveryLog.Write("Discovery cancelled; results discarded."); throw; }
-        catch (Exception ex) { DiscoveryLog.Write("Discovery failed; inventory must be retained", ex); throw; }
+        catch (Exception ex)
+        {
+            DiscoveryLog.Write("SetupAPI enumeration failed; trying Win32_DiskDrive inventory", ex);
+            var fallback = new List<StorageDevice>();
+            SupplementPhysicalDisks(fallback, cancellationToken);
+            if (fallback.Count == 0) throw;
+            return Task.FromResult(MapVolumes(RaidDisplayFallback.Apply(Deduplicate(fallback), RaidDisplayFallback.Read(cancellationToken)), cancellationToken));
+        }
     }
 
     private static IReadOnlyList<StorageDevice> Discover(CancellationToken token)
@@ -63,11 +70,64 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
             string? instanceId = StorageNative.SetupDiGetDeviceInstanceIdW(set, ref info, instance, (uint)instance.Capacity, out _) ? instance.ToString() : null;
             devices.Add(ReadDevice(path, instanceId, token));
         }
+        DiscoveryLog.Write($"Source SetupAPI completed: {devices.Count} disk interfaces.");
+        SupplementPhysicalDisks(devices, token);
         var unique = Deduplicate(devices);
+        unique = RaidDisplayFallback.Apply(unique, RaidDisplayFallback.Read(token));
         var mapped = MapVolumes(unique, token);
         token.ThrowIfCancellationRequested();
         DiscoveryLog.Write($"Discovery completed: {mapped.Count} disks; SATA={mapped.Count(d => d.Protocol == StorageProtocol.Sata)}, NVMe={mapped.Count(d => d.Protocol == StorageProtocol.Nvme)}, Other={mapped.Count(d => d.Protocol == StorageProtocol.Unknown)}.");
         return mapped;
+    }
+
+    private static void SupplementPhysicalDisks(List<StorageDevice> devices, CancellationToken token)
+    {
+        object? locator = null, service = null, rows = null;
+        try
+        {
+            var type = Type.GetTypeFromProgID("WbemScripting.SWbemLocator");
+            if (type is null) throw new InvalidOperationException("Windows WMI locator unavailable.");
+            locator = Activator.CreateInstance(type);
+            service = ((dynamic)locator!).ConnectServer(".", @"root\cimv2");
+            rows = ((dynamic)service).ExecQuery("SELECT DeviceID, Index, Model FROM Win32_DiskDrive");
+            int wmiCount = 0;
+            foreach (object row in (System.Collections.IEnumerable)rows)
+            {
+                try
+                {
+                    token.ThrowIfCancellationRequested();
+                    wmiCount++;
+                    int number = Convert.ToInt32(WmiValue.Read(row, "Index"));
+                    if (devices.Any(d => d.DiskNumber == number)) continue;
+                    string path = Convert.ToString(WmiValue.Read(row, "DeviceID")) ?? "";
+                    if (!string.Equals(path, @"\\.\PhysicalDrive" + number, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Unexpected WMI physical disk path.");
+                    var device = ReadDevice(path, null, token);
+                    if (string.IsNullOrWhiteSpace(device.Model))
+                        device = device with { Model = Convert.ToString(WmiValue.Read(row, "Model")) ?? "" };
+                    devices.Add(device with { DiskNumber = number, Source = "Win32_DiskDrive fallback + Windows storage property queries" });
+                    DiscoveryLog.Write($"WMI supplemented physical disk {number}; protocol={device.Protocol}; access={device.Access}.");
+                }
+                finally { ReleaseCom(row); }
+            }
+            DiscoveryLog.Write($"Source Win32_DiskDrive completed: {wmiCount} records.");
+            ReleaseCom(rows); rows = ((dynamic)service).ExecQuery("SELECT DiskIndex, Index, Size FROM Win32_DiskPartition");
+            int partitions = 0;
+            foreach (object row in (System.Collections.IEnumerable)rows)
+            {
+                try { token.ThrowIfCancellationRequested(); partitions++; DiscoveryLog.Write($"Source Win32_DiskPartition: disk={WmiValue.Read(row, "DiskIndex")}; partition={WmiValue.Read(row, "Index")}; bytes={WmiValue.Read(row, "Size")}"); }
+                finally { ReleaseCom(row); }
+            }
+            DiscoveryLog.Write($"Source Win32_DiskPartition completed: {partitions} records; native volume extents remain authoritative for mapping.");
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { DiscoveryLog.Write("Win32_DiskDrive cross-check failed; SetupAPI inventory retained", ex); }
+        finally { ReleaseCom(rows); ReleaseCom(service); ReleaseCom(locator); }
+    }
+
+    private static void ReleaseCom(object? value)
+    {
+        if (value is not null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value);
     }
 
     internal static string ReadWidePath(byte[] bytes)
@@ -104,15 +164,26 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
         byte[] Query(uint code, byte[]? input, int size)
         {
             token.ThrowIfCancellationRequested();
-            return queryOverride is null ? Ioctl(handle!, code, input, size) : queryOverride(code, input, size);
+            if (queryOverride is not null) return queryOverride(code, input, size);
+            if (code == 0x0004D02C)
+            {
+                using var pass = StorageNative.CreateFileW(path, 0xC0000000, 3, IntPtr.Zero, 3, 0, IntPtr.Zero);
+                if (pass.IsInvalid) throw StorageNative.Error("RAID Identify open; run as administrator if access is denied");
+                var number = Ioctl(pass, StorageNative.DeviceNumber, null, 12);
+                if (device.DiskNumber is null || number.Length < 12 || DescriptorParser.U32(number, 0) != 7 || DescriptorParser.U32(number, 4) != device.DiskNumber)
+                    throw new InvalidDataException("RAID pass-through disk-number revalidation failed.");
+                return Ioctl(pass, code, input, size);
+            }
+            return Ioctl(handle!, code, input, size);
         }
-        bool denied = false;
+        bool denied = false, queryFailed = false;
         void Attempt(string label, Action query)
         {
             token.ThrowIfCancellationRequested();
             try { query(); }
             catch (Exception ex) when (ex is Win32Exception or InvalidDataException or OverflowException)
             {
+                queryFailed = true;
                 denied |= ex is Win32Exception { NativeErrorCode: 5 };
                 issues.Add($"{label}: {Friendly(ex)}"); DiscoveryLog.Write($"Device {id[..12]}: {label}", ex);
             }
@@ -150,9 +221,15 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
             device = device with { IncursSeekPenalty = bytes[8] == 1 };
             issues.Add(bytes[8] == 1 ? "Windows reports seek penalty; media type remains unconfirmed." : "Windows reports no seek penalty; this alone does not establish SSD media.");
         });
-        if (device.Protocol == StorageProtocol.Unknown) issues.Add("Underlying protocol not established from reported bus; no pass-through probing performed.");
-        issues.Add("Media type not confirmed by discovery; protocol and seek behavior do not establish SSD/HDD type.");
-        return device with { Access = denied ? DeviceAccess.AccessDenied : issues.Count > 2 ? DeviceAccess.Limited : DeviceAccess.Available, Limitations = string.Join(" ", issues) };
+        device = StorageQueryService.ProbeRaid(device, Query, token);
+        if (device.Protocol == StorageProtocol.Unknown) issues.Add("Underlying protocol not established from reported bus; RAID protocol probing unavailable or inconclusive.");
+        if (device.Media == StorageMedia.Unknown) issues.Add("Media type not confirmed by discovery; protocol and seek behavior do not establish SSD/HDD type.");
+        if (queryOverride is null && device.Protocol == StorageProtocol.Nvme)
+        {
+            var link = PcieLinkReader.Read(instance);
+            if (link is not null) device = device with { PcieGeneration = link.Generation, PcieLaneWidth = link.Width, PcieLinkSource = "Windows PnP current PCIe link properties: " + link.InstanceId };
+        }
+        return device with { Access = denied || device.Access == DeviceAccess.AccessDenied ? DeviceAccess.AccessDenied : queryFailed || device.Protocol == StorageProtocol.Unknown ? DeviceAccess.Limited : DeviceAccess.Available, Limitations = string.Join(" ", issues) + " " + device.Limitations + " " + device.ProtocolEvidence };
     }
 
     private static byte[] QueryProperty(Func<uint, byte[]?, int, byte[]> query, uint property)
@@ -166,20 +243,25 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
     {
         if (size < 0 || size > DescriptorParser.MaxBuffer) throw new InvalidDataException("Query buffer limit exceeded.");
         var buffer = new byte[size];
-        if (!StorageNative.DeviceIoControl(handle, code, input, (uint)(input?.Length ?? 0), buffer, (uint)size, out uint returned, IntPtr.Zero))
+        if (!StorageNative.DeviceIoControl(handle, code, input, code == 0x0004D02C ? 48U : (uint)(input?.Length ?? 0), buffer, (uint)size, out uint returned, IntPtr.Zero))
             throw StorageNative.Error($"Read-only query 0x{code:X8}");
         if (returned > size) throw new InvalidDataException("Invalid returned byte count.");
         return buffer[..checked((int)returned)];
     }
 
-    internal static IReadOnlyList<StorageDevice> Deduplicate(IEnumerable<StorageDevice> devices) =>
-        devices.GroupBy(d => d.Id, StringComparer.OrdinalIgnoreCase).Select(g =>
+    internal static IReadOnlyList<StorageDevice> Deduplicate(IEnumerable<StorageDevice> devices)
+    {
+        string Key(StorageDevice d) => !string.IsNullOrWhiteSpace(d.Serial) && d.CapacityBytes is > 0 && d.DiskNumber is not null
+            ? $"{d.Serial.Trim().ToUpperInvariant()}|{d.CapacityBytes}|{d.DiskNumber}" : d.Id;
+        return devices.GroupBy(Key, StringComparer.OrdinalIgnoreCase).Select(g =>
         {
-            var first = g.First();
+            var first = g.OrderByDescending(d => d.RaidProtocolVerified).ThenByDescending(d => d.Access == DeviceAccess.Available).First();
+            if (g.Count() > 1) DiscoveryLog.Write($"Duplicate disk records merged: disk={first.DiskNumber}; records={g.Count()}; serial/capacity/physical-number or interface identity matched.");
             if (g.Select(d => d.Bus).Distinct().Count() > 1)
-                return first with { Protocol = StorageProtocol.Unknown, Limitations = first.Limitations + " Conflicting bus evidence for the same interface; classification withheld." };
-            return first;
+                return first with { Protocol = StorageProtocol.Unknown, RaidProtocolVerified = false, Limitations = first.Limitations + " Conflicting bus evidence; classification withheld." };
+            return first with { MountPoints = g.SelectMany(d => d.MountPoints).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() };
         }).ToArray();
+    }
 
     internal static IReadOnlyList<StorageDevice> ApplySystemMapping(IReadOnlyList<StorageDevice> devices, uint[]? disks, string? limitation)
     {

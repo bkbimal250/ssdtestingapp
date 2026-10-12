@@ -1,4 +1,40 @@
 <Window x:Class="pixinit.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:shared="clr-namespace:pixinit.Views.Shared" xmlns:benchmark="clr-namespace:pixinit.Views.Benchmark" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sata="clr-namespace:pixinit.Views.Sata" xmlns:nvme="clr-namespace:pixinit.Views.Nvme" Style="{StaticResource {x:Type Window}}" Title="PIXINIT · Storage diagnostics" Width="1240" Height="820" MinWidth="760" MinHeight="640" WindowStartupLocation="CenterScreen">
+  <Window.Resources>
+    <DataTemplate x:Key="DeviceNavigationTemplate">
+      <StackPanel ToolTip="{Binding DisplayName}">
+        <TextBlock Text="{Binding DiskNumber, StringFormat=Disk {0}, TargetNullValue=Physical disk}" FontSize="11" Foreground="#64748B" Margin="0,0,0,5"/>
+        <TextBlock Text="{Binding Model}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding NavigationCapacity}" FontSize="12" Foreground="#475569" Margin="0,6,0,0"/>
+        <Border Background="#EFF6FF" CornerRadius="4" Padding="5" Margin="0,6,0,0"><TextBlock Text="{Binding ProtocolBadge}" FontSize="11" TextWrapping="Wrap"/></Border>
+        <DockPanel Margin="0,5,0,0"><Ellipse Width="7" Height="7" Fill="#94A3B8" Margin="0,0,5,0" VerticalAlignment="Top" ToolTip="Live health is shown in diagnostics after a validated read"/><TextBlock Text="{Binding AccessBadge}" Foreground="#64748B" FontSize="11" TextWrapping="Wrap"/></DockPanel>
+        <TextBlock Text="{Binding SerialSuffix}" Foreground="#64748B" FontSize="11" Margin="0,5,0,0"/>
+      </StackPanel>
+    </DataTemplate>
+    <Style x:Key="DeviceNavigationItem" TargetType="ListBoxItem">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Padding" Value="12"/>
+      <Setter Property="Margin" Value="0,0,0,8"/>
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="BorderBrush" Value="#E5E7EB"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+        <Border x:Name="DeviceCard" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Stretch"/></Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="DeviceCard" Property="Background" Value="#F1F5F9"/></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="DeviceCard" Property="Background" Value="#EFF6FF"/><Setter TargetName="DeviceCard" Property="BorderBrush" Value="#93C5FD"/></Trigger>
+          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="DeviceCard" Property="BorderBrush" Value="#2563EB"/><Setter TargetName="DeviceCard" Property="BorderThickness" Value="2"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="DeviceNavigationList" TargetType="ListBox">
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="ItemContainerStyle" Value="{StaticResource DeviceNavigationItem}"/>
+      <Setter Property="ItemTemplate" Value="{StaticResource DeviceNavigationTemplate}"/>
+    </Style>
+  </Window.Resources>
   <Grid Background="{StaticResource CanvasBrush}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -29,43 +65,30 @@
       </Grid>
     </Border>
     <Border Grid.Row="1" Background="#EAF0FA" Padding="22,9">
-      <TextBlock Text="{Binding ScanExplanation}" Foreground="#354E74" />
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+        <TextBlock Text="Physical disk" VerticalAlignment="Center" Margin="0,0,12,0"/>
+        <ComboBox Grid.Column="1" ItemsSource="{Binding AllDevices}" SelectedItem="{Binding SelectedDisk}" DisplayMemberPath="DisplayName" MinWidth="240" AutomationProperties.Name="Select physical disk"/>
+      </Grid>
     </Border>
     <TabControl x:Name="WorkspaceTabs" SelectedIndex="{Binding WorkspaceIndex}" Grid.Row="2" Grid.RowSpan="2" Margin="16,12,16,10" AutomationProperties.Name="Workspace sections">
       <TabItem Header="_Diagnostics"><Grid>
     <TabControl x:Name="ProtocolTabs" SelectedIndex="{Binding ActiveTab}" Margin="16,14,16,10" Background="{StaticResource CanvasBrush}" BorderBrush="{StaticResource LineBrush}" AutomationProperties.Name="Storage protocol">
       <TabItem Header="_SATA" AutomationProperties.Name="SATA">
-        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-          <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="10"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="SATA devices" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Grid.Row="1" Text="No SATA devices discovered" TextWrapping="Wrap" Style="{StaticResource Muted}" Visibility="{Binding SataEmpty, Converter={StaticResource BoolVisibility}}"/><ListBox Grid.Row="2" ItemsSource="{Binding SataDevices}" SelectedItem="{Binding SelectedSata}" AutomationProperties.Name="Selected SATA drive" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True"><ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap" Margin="0,6"/></DataTemplate></ListBox.ItemTemplate></ListBox></Grid></Border>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="12"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="All detected disks" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Grid.Row="1" Text="No SATA devices discovered" TextWrapping="Wrap" Style="{StaticResource Muted}" Visibility="{Binding SataEmpty, Converter={StaticResource BoolVisibility}}"/><ListBox Grid.Row="2" Style="{StaticResource DeviceNavigationList}" ItemsSource="{Binding AllDevices}" SelectedItem="{Binding SelectedDisk}" AutomationProperties.Name="All detected disks in SATA diagnostics" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True"></ListBox></Grid></Border>
           <sata:SataView Grid.Column="1" DataContext="{Binding Sata}"/>
         </Grid>
       </TabItem>
       <TabItem Header="_NVMe" AutomationProperties.Name="NVMe">
-        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-          <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="10"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="NVMe devices" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Grid.Row="1" Text="No NVMe devices discovered" TextWrapping="Wrap" Style="{StaticResource Muted}" Visibility="{Binding NvmeEmpty, Converter={StaticResource BoolVisibility}}"/><ListBox Grid.Row="2" ItemsSource="{Binding NvmeDevices}" SelectedItem="{Binding SelectedNvme}" AutomationProperties.Name="Selected NVMe drive" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True"><ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap" Margin="0,6"/></DataTemplate></ListBox.ItemTemplate></ListBox></Grid></Border>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="12"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="All detected disks" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Grid.Row="1" Text="No NVMe devices discovered" TextWrapping="Wrap" Style="{StaticResource Muted}" Visibility="{Binding NvmeEmpty, Converter={StaticResource BoolVisibility}}"/><ListBox Grid.Row="2" Style="{StaticResource DeviceNavigationList}" ItemsSource="{Binding AllDevices}" SelectedItem="{Binding SelectedDisk}" AutomationProperties.Name="All detected disks in NVMe diagnostics" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True"></ListBox></Grid></Border>
           <nvme:NvmeView Grid.Column="1" DataContext="{Binding Nvme}"/>
         </Grid>
       </TabItem>
     </TabControl></Grid>
       </TabItem>
-    <TabItem x:Name="BenchmarkTab" Header="_Benchmark" AutomationProperties.Name="Benchmark"><Grid><Popup IsOpen="{Binding HistoryVisible}" Placement="Center" StaysOpen="False" AllowsTransparency="False"><Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" Padding="12" Width="720" MaxHeight="560"><StackPanel><DockPanel><Button DockPanel.Dock="Right" Content="Close history" Command="{Binding CloseHistoryCommand}"/><TextBlock Text="Historical diagnostic snapshots and exports" FontWeight="SemiBold"/></DockPanel><Grid Margin="16" VerticalAlignment="Top" MaxHeight="440">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <WrapPanel Grid.ColumnSpan="2" Margin="0,0,0,8">
-          <TextBlock Text="Retention days:" VerticalAlignment="Center"/><TextBox Text="{Binding History.RetentionDays}" Width="48" Margin="8,0" AutomationProperties.Name="History retention days"/>
-          <Button Content="Apply" Command="{Binding History.ApplyRetentionCommand}" Margin="0,0,12,0"/>
-          <TextBlock Text="Protocol:" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding History.ProtocolFilters}" SelectedItem="{Binding History.ProtocolFilter}" Width="76" Margin="8,0"/>
-          <Button Content="Filter" Command="{Binding History.ApplyFiltersCommand}" Margin="0,0,6,0"/><Button Content="This device" Command="{Binding History.FilterSelectedDeviceCommand}" Margin="0,0,6,0"/><Button Content="Clear" Command="{Binding History.ClearFiltersCommand}" Margin="0,0,8,0"/><Button Content="Load more" Command="{Binding History.LoadMoreCommand}"/>
-          <TextBlock Text="{Binding History.Status}" Style="{StaticResource Muted}" Margin="12,0,0,0" VerticalAlignment="Center"/>
-        </WrapPanel>
-        <ListBox MinHeight="180" MaxHeight="280" Padding="8" BorderBrush="{StaticResource LineBrush}" Grid.Row="1" ItemsSource="{Binding History.Sessions}" SelectedItem="{Binding History.Selected}" AutomationProperties.Name="Historical sessions">
-          <ListBox.ItemTemplate><DataTemplate><Border Style="{StaticResource Card}" Padding="10"><StackPanel><TextBlock Text="{Binding ObservedAtUtc}"/><TextBlock Text="{Binding Model}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Protocol}" Style="{StaticResource Muted}"/><TextBlock Text="{Binding CompletionState, StringFormat=Session: {0}}" Style="{StaticResource Muted}"/><TextBlock><Run Text="{Binding Assessment}"/><Run Text=" · coverage "/><Run Text="{Binding Coverage}"/></TextBlock></StackPanel></Border></DataTemplate></ListBox.ItemTemplate>
-        </ListBox>
-        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}" Margin="12,0,0,0" Padding="12"><StackPanel><TextBlock Text="Historical snapshot" Style="{StaticResource Heading}"/><TextBlock Text="Select a saved session to view its original readings and observation time." Style="{StaticResource Muted}" Margin="0,0,0,8"/><ScrollViewer MaxHeight="230" Margin="12,0,0,0" VerticalScrollBarVisibility="Auto"><StackPanel><TextBlock Text="{Binding History.Detail}" TextWrapping="Wrap"/><Expander Header="Compatible snapshot comparison"><TextBlock Text="{Binding History.Comparison}" TextWrapping="Wrap" Margin="0,8,0,0"/></Expander></StackPanel></ScrollViewer></StackPanel></Border>
-        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0"><CheckBox Content="Redact serial" IsChecked="{Binding History.ExportRedactSerial}" VerticalAlignment="Center" Margin="0,0,12,0"/><CheckBox Content="Include raw payloads" IsChecked="{Binding History.ExportIncludeRawPayloads}" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Raw payloads can contain device identity data."/><Button Content="Export TXT" Command="{Binding History.ExportTextCommand}"/><Button Content="Export JSON" Command="{Binding History.ExportJsonCommand}" Margin="8,0,0,0"/></StackPanel>
-      </Grid>
-    </StackPanel></Border></Popup><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><benchmark:BenchmarkView Margin="16" DataContext="{Binding Benchmark}"/></ScrollViewer></Grid></TabItem>
-<TabItem x:Name="OtherDevicesTab" Header="_Other / Unidentified" AutomationProperties.Name="Other / Unidentified"><ScrollViewer VerticalScrollBarVisibility="Auto"><Border Style="{StaticResource Card}" Margin="16" VerticalAlignment="Top" Padding="12"><Expander x:Name="UnidentifiedDevicesSection" Header="{Binding OtherSummary}" IsExpanded="True" AutomationProperties.Name="Unidentified devices"><Expander.Style><Style TargetType="Expander"><Setter Property="Foreground" Value="#25364D"/><Style.Triggers><DataTrigger Binding="{Binding OtherDevices.Count}" Value="0"><Setter Property="Foreground" Value="#64748B"/></DataTrigger></Style.Triggers></Style></Expander.Style><ScrollViewer MaxHeight="620" VerticalScrollBarVisibility="Auto">
+    <TabItem x:Name="BenchmarkTab" Header="_Benchmark" AutomationProperties.Name="Benchmark"><Grid><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><benchmark:BenchmarkView Margin="16" DataContext="{Binding Benchmark}"/></ScrollViewer></Grid></TabItem>
+<TabItem x:Name="OtherDevicesTab" Header="_Additional Devices" AutomationProperties.Name="Additional Devices"><TabItem.Style><Style TargetType="TabItem"><Style.Triggers><DataTrigger Binding="{Binding OtherDevices.Count}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TabItem.Style><ScrollViewer VerticalScrollBarVisibility="Auto"><Border Style="{StaticResource Card}" Margin="16" VerticalAlignment="Top" Padding="12"><Expander x:Name="UnidentifiedDevicesSection" Header="{Binding OtherSummary}" IsExpanded="True" AutomationProperties.Name="Unidentified devices"><Expander.Style><Style TargetType="Expander"><Setter Property="Foreground" Value="#25364D"/><Style.Triggers><DataTrigger Binding="{Binding OtherDevices.Count}" Value="0"><Setter Property="Foreground" Value="#64748B"/></DataTrigger></Style.Triggers></Style></Expander.Style><ScrollViewer MaxHeight="620" VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="0,8,0,0"><TextBlock Text="Devices whose SATA or NVMe protocol could not be established appear here." Style="{StaticResource Muted}"/>
         <TextBlock Text="Underlying protocol is not established for these disks. USB, RAID, ATA and virtual buses do not establish SATA or NVMe." Style="{StaticResource Muted}" />
         <ListBox ItemsSource="{Binding OtherDevices}" SelectedItem="{Binding SelectedOther}" MaxHeight="520" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Unidentified devices">
@@ -101,10 +124,10 @@
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <StackPanel>
-          <TextBlock Text="{Binding OperationStatus}" Style="{StaticResource Muted}" AutomationProperties.LiveSetting="Polite" />
-          <TextBlock Text="{Binding Freshness}" Style="{StaticResource Muted}" FontSize="11" />
+          <TextBlock Text="{Binding FooterSummary}" TextWrapping="Wrap" Style="{StaticResource Muted}" AutomationProperties.LiveSetting="Polite" />
+          
         </StackPanel>
-        <TextBlock Grid.Column="1" Text="{Binding DeviceSummary}" Style="{StaticResource Muted}" Margin="14,0,0,0" />
+        
       </Grid>
     </Border>
   </Grid>

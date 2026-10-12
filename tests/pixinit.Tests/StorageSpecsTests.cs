@@ -8,7 +8,6 @@ using pixinit.Core.Diagnostics.Common;
 using pixinit.Core.Diagnostics.Nvme;
 using pixinit.Core.Diagnostics.Sata;
 using pixinit.Infrastructure.Benchmarking;
-using pixinit.Infrastructure.History;
 using pixinit.ViewModels.Benchmark;
 
 namespace pixinit.Tests;
@@ -70,21 +69,20 @@ internal static partial class Program
             var random = BenchmarkOperationResult.Calculate(BenchmarkOperation.RandomRead, 1000L * 4096, 1000, 3 * System.Diagnostics.Stopwatch.Frequency, latency);
             session = session with { Configuration = config with { Operations = BenchmarkOperation.RandomRead }, Results = [random], Tbw = mapped.Tbw, Thermal = mapped.Thermal };
             Check(session.RndReadIOPS == 500 && session.RndReadMBs == 500 * 4096d / 1_048_576 && Math.Abs(random.Iops!.Value - 1000 / 3d) < 1e-8, "Latency-derived random rate remains separate from end-to-end wall-clock IOPS");
-            var store = new SqliteHistoryStore(Path.Combine(root, "history.db")); await store.InitializeAsync(); await store.SaveBenchmarkAsync(session);
-            var loaded = await store.LoadBenchmarkAsync(session.Id);
-            Check(loaded?.SustainedSamples.Count == 1 && loaded.Tbw?.WrittenTB == mapped.Tbw.WrittenTB && loaded.Thermal?.ObservedC == mapped.Thermal!.ObservedC && loaded.RndReadIOPS == 500 && loaded.SustainedOverallMBs == session.SustainedOverallMBs, "Complete benchmark JSON round-trips samples, reference TBW, thermal context and random rates");
+            var loaded = JsonSerializer.Deserialize<BenchmarkSession>(JsonSerializer.Serialize(session));
+            Check(loaded?.SustainedSamples.Count == 1 && loaded.Tbw?.WrittenTB == mapped.Tbw.WrittenTB && loaded.Thermal?.ObservedC == mapped.Thermal!.ObservedC && loaded.RndReadIOPS == 500 && loaded.SustainedOverallMBs == session.SustainedOverallMBs, "In-memory benchmark data retains samples, reference TBW, thermal context and random rates");
             string export = Path.Combine(root, "report.json"); await BenchmarkReportExporter.ExportJsonAsync(session, export); using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(export));
             Check(doc.RootElement.GetProperty("Session").GetProperty("SustainedSamples").GetArrayLength() == 1 && doc.RootElement.GetProperty("Session").GetProperty("Tbw").GetProperty("RatingVerified").GetBoolean() == false && doc.RootElement.GetProperty("Session").GetProperty("SustainedOverallMBs").GetDouble() > 0, "Export preserves samples and unverified rating status");
-            var changedVm = new BenchmarkViewModel(engine, null, () => [], () => null, () => { }) { TargetDirectory = root, SequentialRead = false, SequentialWrite = false, RandomRead = false, RandomWrite = false, SustainedWrite = true, SustainedBudgetMiB = 1, SustainedDurationSeconds = 1 };
+            var changedVm = new BenchmarkViewModel(engine, () => [], () => null, () => { }) { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root, SequentialRead = false, SequentialWrite = false, RandomRead = false, RandomWrite = false, SustainedWrite = true, SustainedBudgetMiB = 1, SustainedDurationSeconds = 1 };
             changedVm.ConsentProvider = new ChangeSpecsConsent(() => changedVm.SustainedBudgetMiB = 2);
             await changedVm.RunAsync();
             Check(changedVm.Result is null && changedVm.Status.Contains("changed after consent") && changedVm.ConsentStatus.Contains("not granted"), "Sustained budget changes after consent refuse all writes");
             var gate = new StorageOperationGate(); using (gate.Enter())
             {
-                var vm = new BenchmarkViewModel(engine, null, () => [], () => null, () => { }, new Consent(true), operationGate: gate) { TargetDirectory = root, SequentialRead = false, SequentialWrite = false, RandomRead = false, RandomWrite = false, SustainedWrite = true, SustainedBudgetMiB = 1, SustainedDurationSeconds = 1 };
+                var vm = new BenchmarkViewModel(engine, () => [], () => null, () => { }, new Consent(true), operationGate: gate) { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root, SequentialRead = false, SequentialWrite = false, RandomRead = false, RandomWrite = false, SustainedWrite = true, SustainedBudgetMiB = 1, SustainedDurationSeconds = 1 };
                 await vm.RunAsync(); Check(vm.Result is null && !vm.Busy && vm.Status.Contains("still finishing") && await VerifyDiagnosticPreparationAsync(engine, root), "Shared storage gate rejects benchmark overlap and releases UI busy state");
             }
         }
-        finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
+        finally { Directory.Delete(root, true); }
     }
 }

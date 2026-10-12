@@ -38,7 +38,7 @@ public static class DiagnosticReportExporter
     }
     private static DiagnosticReport Build(DiagnosticSnapshot source, ExportOptions options)
     {
-        var device = source.Device with { Serial = options.RedactSerial && source.Device.Serial is not null ? "REDACTED" : source.Device.Serial };
+        var device = source.Device with { RaidIdentifyRaw = options.IncludeRawPayloads && !options.RedactSerial ? source.Device.RaidIdentifyRaw : [], Serial = options.RedactSerial && source.Device.Serial is not null ? "REDACTED" : source.Device.Serial };
         var queries = source.Queries.Select(q => options.IncludeRawPayloads ? q : q with { Raw = [] }).ToArray();
         return new(DiagnosticSnapshot.ReportSchemaVersion, DateTimeOffset.UtcNow, source with { Device = device, Queries = queries },
             "Metric values, including UInt128/BigInteger counters, are decimal strings in Snapshot.Metrics[].ValueText.", options.RedactSerial, options.IncludeRawPayloads);

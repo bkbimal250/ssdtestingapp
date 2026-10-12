@@ -1,14 +1,12 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
-using Microsoft.Data.Sqlite;
 using pixinit.Application.Benchmarking;
 using pixinit.Application.Reporting;
 using pixinit.Core.Benchmark;
 using pixinit.Core.History;
 using pixinit.Core.Diagnostics.Nvme;
 using pixinit.Infrastructure.Benchmarking;
-using pixinit.Infrastructure.History;
 using pixinit.Infrastructure.Windows.Nvme;
 using pixinit.Infrastructure.Windows.Sata;
 using pixinit.ViewModels.Benchmark;
@@ -71,23 +69,13 @@ internal static partial class Program
             manager.BeforeDeleteForTest = _ => throw new IOException("Synthetic cleanup denial"); var cleanupFailed = await engine.RunAsync(target, readOnly, true);
             Check(!cleanupFailed.CleanupSucceeded && cleanupFailed.Reason!.Contains("remains at") && File.Exists(cleanupFailed.BenchmarkFilePath), "Cleanup failure is visible and preserves the exact owned-file location");
             manager.BeforeDeleteForTest = null; var orphan = (await manager.FindOrphansAsync(root)).Single(r => r.FilePath == cleanupFailed.BenchmarkFilePath);
-            var recoveryVm = new BenchmarkViewModel(engine, null, () => [], () => null, () => { }) { TargetDirectory = root }; await recoveryVm.InitializeAsync();
+            var recoveryVm = new BenchmarkViewModel(engine, () => [], () => null, () => { }) { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root }; await recoveryVm.InitializeAsync();
             Check(recoveryVm.OwnedFilesNeedingCleanup.Single().FilePath == orphan.FilePath && recoveryVm.RetryCleanupCommand.CanExecute(null), "Restart surfaces the exact verified owned file and enables safe cleanup retry");
             recoveryVm.RetryCleanupCommand.Execute(null); for (int i = 0; i < 100 && !recoveryVm.Status.StartsWith("Cleaned ", StringComparison.Ordinal); i++) await Task.Delay(10);
             Check(!File.Exists(orphan.FilePath), "Interrupted owned-file manifest supports safe restart discovery and retry cleanup");
             string unrelated = Path.Combine(root, "unrelated.bin"); await File.WriteAllTextAsync(unrelated, "keep"); string ownedDirectory = Path.Combine(root, OwnedBenchmarkFileManager.DirectoryName); Directory.CreateDirectory(ownedDirectory);
             var redirected = new OwnedFileRecord(Guid.NewGuid(), "BAD", unrelated, unrelated + ".owner.json", DateTimeOffset.UtcNow, 0, 0); await File.WriteAllTextAsync(Path.Combine(ownedDirectory, "redirect.owner.json"), JsonSerializer.Serialize(redirected));
             Check((await manager.FindOrphansAsync(root)).Count == 0 && File.Exists(unrelated), "Untrusted manifest paths cannot redirect cleanup outside the owned benchmark directory");
-
-            string db = Path.Combine(root, "history.db"); var store = new SqliteHistoryStore(db); await store.InitializeAsync();
-            var diagnostic = SnapshotFactory.Create(Guid.NewGuid(), SyntheticNvme(), AssessedNvme(NvmeHealthParser.Parse(HealthyPhase6Health()))); await store.SaveAsync(diagnostic); await store.SaveBenchmarkAsync(session);
-            var restarted = new SqliteHistoryStore(db); await restarted.InitializeAsync(); var reopened = await restarted.LoadBenchmarkAsync(session.Id);
-            Check(reopened?.Results.Count == 4 && await restarted.LoadAsync(diagnostic.Id) is not null, "Schema v2 restart reopens benchmark history and preserves diagnostic history");
-            Check(reopened!.Results.Select(r => r.BytesProcessed).SequenceEqual(session.Results.Select(r => r.BytesProcessed)), "Benchmark history preserves counters and measured values losslessly");
-            var rollback = new SqliteHistoryStore(Path.Combine(root, "rollback.db")); await rollback.InitializeAsync(); rollback.FailAfterBenchmarkInsertForTest = true; rejected = false; try { await rollback.SaveBenchmarkAsync(session with { Id = Guid.NewGuid() }); } catch (InvalidOperationException) { rejected = true; }
-            Check(rejected && await rollback.CountBenchmarksAsync() == 0, "Benchmark history transaction rolls back on forced failure");
-            string migrationDb = Path.Combine(root, "migration.db"); await using (var c = new SqliteConnection($"Data Source={migrationDb}")) { await c.OpenAsync(); await new SqliteCommand("CREATE TABLE sessions(id TEXT PRIMARY KEY); INSERT INTO sessions VALUES('preserve-me'); PRAGMA user_version=1;", c).ExecuteNonQueryAsync(); }
-            await new SqliteHistoryStore(migrationDb).InitializeAsync(); await using (var c = new SqliteConnection($"Data Source={migrationDb}")) { await c.OpenAsync(); long preserved = Convert.ToInt64(await new SqliteCommand("SELECT COUNT(*) FROM sessions WHERE id='preserve-me';", c).ExecuteScalarAsync()); long version = Convert.ToInt64(await new SqliteCommand("PRAGMA user_version;", c).ExecuteScalarAsync()); Check(preserved == 1 && version == 2, "Transactional v1-to-v2 migration preserves existing diagnostic rows"); }
 
             var reliableDevice = SnapshotFactory.DeviceSnapshot(SyntheticNvme()); var mappedTarget = target with { Device = reliableDevice, PhysicalIdentityReliable = true };
             var older = session with { Id = Guid.NewGuid(), StartedUtc = session.StartedUtc.AddMinutes(-1), FinishedUtc = session.FinishedUtc.AddMinutes(-1), Target = mappedTarget };
@@ -101,24 +89,21 @@ internal static partial class Program
             Check(doc.RootElement.GetProperty("Session").GetProperty("Target").GetProperty("Device").GetProperty("Serial").GetString() == "REDACTED" && doc.RootElement.GetProperty("LosslessIntegerValues").GetProperty("fileSizeBytes").GetString() == config.FileSizeBytes.ToString(), "Benchmark JSON redacts serial and documents lossless integer strings");
             Check(txtText.Contains("MB/s = bytes/second / 1,000,000") && txtText.Contains(BenchmarkPolicy.Version) && txtText.Contains("Temperature before:") && !txtText.Contains("benchmark test data"), "Benchmark TXT includes policy, units, temperature context, methodology and no test-data contents");
 
-            var consent = new Consent(true); var vm = new BenchmarkViewModel(engine, null, () => [], () => null, () => { }, consent) { TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false };
+            var consent = new Consent(true); var vm = new BenchmarkViewModel(engine, () => [], () => null, () => { }, consent) { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false };
             await vm.RunAsync(); vm.FileSizeMiB = 32; vm.ConfigurationChanged(); await vm.RunAsync();
             Check(consent.Calls == 2 && vm.ConsentStatus.Contains("granted"), "Consent is explicit and invalidated after a material configuration change");
-            var declinedConsent = new Consent(false); var declinedVm = new BenchmarkViewModel(engine, null, () => [], () => null, () => { }, declinedConsent) { TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false }; await declinedVm.RunAsync();
+            var declinedConsent = new Consent(false); var declinedVm = new BenchmarkViewModel(engine, () => [], () => null, () => { }, declinedConsent) { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false }; await declinedVm.RunAsync();
             Check(declinedConsent.Calls == 1 && declinedVm.ResultSummary == "No benchmark result", "Declined write preparation consent performs no benchmark");
 
-            var badStore = new SqliteHistoryStore(root); var persistenceVm = new BenchmarkViewModel(engine, badStore, () => [], () => null, () => { }, new Consent(true)) { TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false }; await persistenceVm.RunAsync();
-            Check(persistenceVm.Result is { Completion: BenchmarkCompletion.Completed } && persistenceVm.Status.Contains("history save failed"), "Benchmark remains visible when history persistence fails");
-
-            var staleVm = new BenchmarkViewModel(engine, null, () => [], () => null, () => { }, new Consent(true)) { TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false };
+            var staleVm = new BenchmarkViewModel(engine, () => [], () => null, () => { }, new Consent(true)) { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false };
             bool switched = false; staleVm.PropertyChanged += (_, e) => { if (!switched && e.PropertyName == nameof(staleVm.ProgressPercent) && staleVm.ProgressPercent > 0) { switched = true; staleVm.SelectionChanged(); } };
             await staleVm.RunAsync(); Check(switched && staleVm.Result is null && staleVm.Status.Contains("discarded") && (await manager.FindOrphansAsync(root)).Count == 0, "Device-selection change cancels, cleans and rejects the stale benchmark result");
 
-            var closeVm = new BenchmarkViewModel(engine, null, () => [], () => null, () => { }, new Consent(true)) { TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false };
+            var closeVm = new BenchmarkViewModel(engine, () => [], () => null, () => { }, new Consent(true)) { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false };
             bool closed = false; closeVm.PropertyChanged += (_, e) => { if (!closed && e.PropertyName == nameof(closeVm.ProgressPercent) && closeVm.ProgressPercent > 0) { closed = true; closeVm.Close(); } };
             await closeVm.RunAsync(); await closeVm.CancelAndWaitAsync(); Check(closed && closeVm.Result is null && (await manager.FindOrphansAsync(root)).Count == 0, "Application close waits for cancellation and owned-file cleanup before discarding the result");
         }
-        finally { SqliteConnection.ClearAllPools(); if (Directory.Exists(root)) Directory.Delete(root, true); }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
     private static byte[] HealthyPhase6Health() { var b = SyntheticHealth(); b[0] = 0; b[5] = 50; Array.Clear(b, 160, 16); return b; }
 }

@@ -15,7 +15,7 @@ public static partial class BenchmarkReportExporter
 {
     public static SatisfactionReport BuildSatisfactionReport(BenchmarkSession s, bool redact = true)
     {
-        BenchmarkOperationResult? Op(BenchmarkOperation o) => s.Results.FirstOrDefault(r => r.Operation == o && r.State == BenchmarkOperationState.Completed);
+        BenchmarkOperationResult? Op(BenchmarkOperation o) => s.ValidationWarning.StartsWith("INVALID", StringComparison.Ordinal) ? null : s.Results.FirstOrDefault(r => r.Operation == o && r.State == BenchmarkOperationState.Completed);
         var read = Op(BenchmarkOperation.SequentialRead); var write = Op(BenchmarkOperation.SequentialWrite);
         var temp = s.Thermal is { InterpretationVerified: true } ? s.Thermal.ObservedC : null;
         var used = s.PercentageUsed;
@@ -24,8 +24,8 @@ public static partial class BenchmarkReportExporter
         var metrics = new List<CompanyMetric>();
         void Add(string label, double? value, string unit, string reason, string source, DateTimeOffset? observed = null)
         { bool valid = value is double v && double.IsFinite(v); metrics.Add(new(label, valid ? value : null, unit, valid ? null : reason, source, observed)); }
-        Add("SEQ Read", read?.MegabytesPerSecond, "MB/s", "No completed sequential read", "Buffered filesystem QD1");
-        Add("SEQ Write", write?.MegabytesPerSecond, "MB/s", "No completed sequential write", "Buffered filesystem QD1; FlushAsync to OS");
+        Add("SEQ Read", read?.MegabytesPerSecond, "MB/s", "No completed sequential read", s.Configuration.EffectiveIoMode);
+        Add("SEQ Write", write?.MegabytesPerSecond, "MB/s", "No completed sequential write", s.Configuration.EffectiveIoMode);
         Add("RND Read", s.RndReadIOPS, "IOPS", "No completed 4 KiB random read", "1000 / mean latency ms");
         Add("RND Write", s.RndWriteIOPS, "IOPS", "No completed 4 KiB random write", "1000 / mean latency ms");
         Add("Sustained overall", s.SustainedOverallMBs, "MB/s", "Sustained not run or no timed measurement", "Actual total bytes / actual total seconds; completion status applies");
@@ -39,12 +39,12 @@ public static partial class BenchmarkReportExporter
         {
             new CompanyCriterion("Temperature < 80 C", temp is null ? "N/A" : temp < 80 ? "PASS" : "FAIL", temp is null ? "Verified temperature not observed" : $"{temp:F1} C observed snapshot"),
             new CompanyCriterion("Percentage Used < 90%", used is null ? "N/A" : used < 90 ? "PASS" : "FAIL", used is null ? "Consumed-endurance field unavailable" : $"{used:F1}% consumed"),
-            new CompanyCriterion("SEQ Read > 500 MB/s", read is null ? "N/A" : read.MegabytesPerSecond > 500 ? "PASS" : "FAIL", "User-defined buffered QD1 criterion; not a manufacturer capability guarantee")
+            new CompanyCriterion("SEQ Read > 500 MB/s", read is null ? "N/A" : read.MegabytesPerSecond > 500 ? "PASS" : "FAIL", "User-defined Q1T1 criterion; not a manufacturer capability guarantee")
         };
         string verdict = criteria.Any(c => c.Result == "FAIL") ? "FAIL" : s.Completion != BenchmarkCompletion.Completed || criteria.Any(c => c.Result == "N/A") ? "INCOMPLETE" : "PASS";
         return new(BenchmarkSession.ReportSchemaVersion, DateTimeOffset.UtcNow, s.FinishedUtc, s.PolicyVersion, s.Completion.ToString(), s.Target.Device?.Model,
             redact && s.Target.Device?.Serial is not null ? "REDACTED" : s.Target.Device?.Serial, s.Target.Directory, s.Target.FileSystem, s.Target.MappingEvidence, metrics, criteria, verdict,
-            "Company acceptance criteria only, separate from evidence-based device health. Buffered filesystem QD1; caching affects results. No uncached/durable NAND speed or proven SLC exhaustion. 600 TB is an unverified reference, not a rating. Missing fields do not imply zero or PASS. Idle/load capture conditions and completion status apply.");
+            s.Configuration.EffectiveIoMode + " Company acceptance criteria only, separate from evidence-based device health. No uncached/durable NAND speed or proven SLC exhaustion. 600 TB is an unverified reference, not a rating. Missing fields do not imply zero or PASS. Idle/load capture conditions and completion status apply.");
     }
     public static async Task ExportSatisfactionReport(BenchmarkSession session, string path, bool json = false, bool redactSerial = true, CancellationToken token = default)
     {

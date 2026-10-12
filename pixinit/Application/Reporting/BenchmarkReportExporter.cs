@@ -18,14 +18,18 @@ public static partial class BenchmarkReportExporter
     public static async Task ExportTextAsync(BenchmarkSession source, string path, bool redactSerial = true, CancellationToken token = default)
     {
         var report = Build(source, redactSerial); var s = report.Session; var b = new StringBuilder();
-        b.AppendLine($"PIXINIT benchmark report {report.ReportSchemaVersion}").AppendLine("Buffered filesystem benchmark - QD1; caching affects results.").AppendLine($"Exported UTC: {report.ExportedAtUtc:O}").AppendLine($"Observed: {s.StartedUtc:O} - {s.FinishedUtc:O}")
+        b.AppendLine($"PIXINIT benchmark report {report.ReportSchemaVersion}").AppendLine(s.Methodology).AppendLine($"Exported UTC: {report.ExportedAtUtc:O}").AppendLine($"Observed: {s.StartedUtc:O} - {s.FinishedUtc:O}")
             .AppendLine($"Policy / app: {s.PolicyVersion} / {s.ApplicationVersion}").AppendLine($"Target: {s.Target.Directory} ({s.Target.FileSystem}; {s.Target.VolumeRoot})")
             .AppendLine($"Device: {s.Target.Device?.Model ?? "Uncertain"}; serial: {s.Target.Device?.Serial ?? "Unavailable"}").AppendLine($"Identity: {s.Target.MappingEvidence}")
             .AppendLine($"Preset / operations: {s.Configuration.Preset} / {s.Configuration.Operations}").AppendLine($"File / blocks: {s.Configuration.FileSizeBytes} / seq {s.Configuration.SequentialBlockBytes} / random {s.Configuration.RandomBlockBytes} bytes")
-            .AppendLine($"Iterations / random operations / queue: {s.Configuration.Iterations} / {s.Configuration.RandomOperationCount} / {s.Configuration.QueueDepth}").AppendLine($"I/O: {s.Configuration.IoMode}")
+            .AppendLine($"Iterations / random operations / queue: {s.Configuration.Iterations} / {s.Configuration.RandomOperationCount} / {s.Configuration.QueueDepth}").AppendLine($"I/O: {s.Configuration.EffectiveIoMode}")
             .AppendLine($"Maximum/application data bytes are not physical NAND writes: {s.Configuration.MaximumWriteBytes()}").AppendLine($"Consent required/granted: {s.WriteConsentRequired}/{s.WriteConsentGranted}").AppendLine($"Completion: {s.Completion}; reason: {s.Reason ?? "None"}")
             .AppendLine($"Temperature before: {Temperature(s.BeforeTemperature)}").AppendLine($"Temperature after: {Temperature(s.AfterTemperature)}")
             .AppendLine($"Preparation: {s.PreparationBytesWritten} bytes, {s.PreparationSeconds:R} s; warm-up {s.WarmupSeconds:R} s; cleanup {s.CleanupSeconds:R} s; total {s.TotalSeconds:R} s; cleanup succeeded {s.CleanupSucceeded}").AppendLine();
+        b.AppendLine($"Plausibility: {s.ValidationWarning}");
+        b.AppendLine($"Sector size: {s.SectorSize}; buffer alignment: {s.BufferAlignment}; TRIM attempted: {s.TrimAttempted}; {s.TrimStatus}; valid device attribution: {s.IsValidForDeviceAttribution}");
+        foreach (var p in s.PassResults) b.AppendLine($"{p.Profile}; pass {p.Pass}; {p.Measurement.Operation}; {p.Measurement.State}; {p.Measurement.MegabytesPerSecond:R} MB/s; {p.Measurement.BytesProcessed} bytes; include in average: {p.IncludeInAverage}; valid attribution: {p.IsValidForDeviceAttribution}; {p.Measurement.CompletedOperations} operations; {p.Measurement.MeasuredSeconds:R} s; Q{p.QueuePerWorker} per worker; workers {p.Workers}");
+        foreach (var p in s.ProfileSummaries) b.AppendLine($"{p.Profile}; {p.Operation}; avg of {p.CompletedPasses}: {p.AverageMBs:R} MB/s; best {p.BestMBs:R} MB/s; average {p.AverageIOPS:R} IOPS; passes [{p.PassValues}]");
         foreach (var r in s.Results) b.AppendLine($"{r.Operation} | {r.State} | bytes={r.BytesProcessed} | operations={r.CompletedOperations} | measured={r.MeasuredSeconds:R}s | {r.MegabytesPerSecond:R} MB/s | {r.MebibytesPerSecond:R} MiB/s | IOPS={r.Iops?.ToString("R") ?? "N/A"} | latency avg/min/max ms={r.Latency?.AverageMilliseconds:R}/{r.Latency?.MinimumMilliseconds:R}/{r.Latency?.MaximumMilliseconds:R}");
         b.AppendLine($"Random latency-derived rates: read {s.RndReadIOPS:R} IOPS / {s.RndReadMBs:R} MiB/s; write {s.RndWriteIOPS:R} IOPS / {s.RndWriteMBs:R} MiB/s")
             .AppendLine($"Sustained: {s.SustainedStatus}; overall {s.SustainedOverallMBs:R} MB/s; post-drop {s.SustainedPostDropMBs:R} MB/s; drop second {s.ThroughputDropSecond}; cap {s.Configuration.SustainedMaximumWriteBytes} application bytes; duration {s.Configuration.SustainedDurationSeconds}s")
@@ -41,11 +45,12 @@ public static partial class BenchmarkReportExporter
     }
     private static BenchmarkReport Build(BenchmarkSession source, bool redact)
     {
-        var device = source.Target.Device is null ? null : source.Target.Device with { Serial = redact && source.Target.Device.Serial is not null ? "REDACTED" : source.Target.Device.Serial };
+        var device = source.Target.Device is null ? null : source.Target.Device with { RaidIdentifyRaw = redact ? [] : source.Target.Device.RaidIdentifyRaw, Serial = redact && source.Target.Device.Serial is not null ? "REDACTED" : source.Target.Device.Serial };
         var s = source with { Target = source.Target with { Device = device } };
         var integers = new Dictionary<string, string> { ["fileSizeBytes"] = s.Configuration.FileSizeBytes.ToString(), ["preparationBytesWritten"] = s.PreparationBytesWritten.ToString() };
         for (int i = 0; i < s.Results.Count; i++) { integers[$"results[{i}].bytesProcessed"] = s.Results[i].BytesProcessed.ToString(); integers[$"results[{i}].completedOperations"] = s.Results[i].CompletedOperations.ToString(); }
-        return new(BenchmarkSession.ReportSchemaVersion, DateTimeOffset.UtcNow, s, integers, redact);
+        if (!s.Configuration.Unbuffered) return new(BenchmarkSession.ReportSchemaVersion, DateTimeOffset.UtcNow, s, integers, redact);
+        return new(BenchmarkSession.ReportSchemaVersion, DateTimeOffset.UtcNow, s, integers, redact, Units: "MB/s = bytes/second / 1,000,000; MiB/s = bytes/second / 1,048,576; IOPS = completed operations / measured seconds. Means and best use completed, eligible pass rates; latency is reported separately.", Limitations: s.Methodology + " Results are not physical NAND writes; no proven SLC exhaustion or guaranteed CrystalDiskMark equivalence.");
     }
     private static string Temperature(BenchmarkTemperature? value) => value is null ? "Unavailable" : $"{value.Celsius:R} C; source={value.Source}; scope={value.Scope}; observed={value.ObservedAt:O}";
     private static async Task Write(string path, string text, CancellationToken token)

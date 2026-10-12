@@ -10,7 +10,17 @@ namespace pixinit.Core.History;
 
 public sealed record SnapshotDevice(string Model, string? Serial, string? Firmware, string Protocol, string Bus,
     uint? NativeBusType, long? CapacityBytes, string IdentityEvidence, string? InstanceId, string? InterfacePath,
-    string? MatchKey, bool IdentityReliable);
+    string? MatchKey, bool IdentityReliable)
+{
+    public bool ProtocolHeuristic { get; init; }
+    public bool MediaInferred { get; init; }
+    public bool RaidProtocolVerified { get; init; }
+    public string? ProtocolEvidence { get; init; }
+    public byte[] RaidIdentifyRaw { get; init; } = [];
+    public int? PcieGeneration { get; init; }
+    public int? PcieLaneWidth { get; init; }
+    public string? PcieLinkSource { get; init; }
+}
 public sealed record SnapshotQuery(string Name, string Outcome, string Explanation, string Scope, string Source,
     DateTimeOffset ObservedAt, int? NativeError, byte[] Raw);
 public sealed record SnapshotMetric(string Key, string? ValueText, string Unit, string Availability, string Source,
@@ -35,6 +45,8 @@ public static class SnapshotFactory
         {
             M("sata.smart.return_status", r.SmartPassed.Value?.ToString(), "boolean", r.SmartPassed.Availability.ToString(), r.SmartPassed.Source, r.SmartPassed.ObservedAt, "Selected SATA device")
         };
+        metrics.Add(FromMetric("sata.temperature", r.Temperature, "C", assessment.ProtocolScope));
+        metrics.Add(M("sata.power_on_hours", r.PowerOnHours?.ToString("R", System.Globalization.CultureInfo.InvariantCulture), "hours", r.PowerOnHours is null ? "Unavailable" : "Available", "SATA result mapper; vendor interpretation retained", assessment.ObservedAt, assessment.ProtocolScope));
         foreach (var a in r.Attributes)
         {
             string prefix = $"sata.attribute.{a.Id:X2}.{a.Slot}";
@@ -96,7 +108,7 @@ public static class SnapshotFactory
     {
         bool reliable = !string.IsNullOrWhiteSpace(d.Serial) && !string.IsNullOrWhiteSpace(d.InstanceId) && !string.IsNullOrWhiteSpace(d.InterfacePath);
         string? key = reliable ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{d.Protocol}|{d.InstanceId}|{d.InterfacePath}|{d.Serial}|{d.Model}|{d.CapacityBytes}"))) : null;
-        return new(d.Model, d.Serial, d.Firmware, d.Protocol.ToString(), d.Bus.ToString(), d.NativeBusType, d.CapacityBytes, d.IdentityEvidence, d.InstanceId, d.InterfacePath, key, reliable);
+        return new(d.Model, d.Serial, d.Firmware, d.Protocol.ToString(), d.Bus.ToString(), d.NativeBusType, d.CapacityBytes, d.IdentityEvidence, d.InstanceId, d.InterfacePath, key, reliable) { ProtocolHeuristic = d.ProtocolHeuristic, MediaInferred = d.MediaInferred, RaidProtocolVerified = d.RaidProtocolVerified, ProtocolEvidence = d.ProtocolEvidence, RaidIdentifyRaw = d.RaidIdentifyRaw.ToArray(), PcieGeneration = d.PcieGeneration, PcieLaneWidth = d.PcieLaneWidth, PcieLinkSource = d.PcieLinkSource };
     }
     private static SnapshotMetric FromMetric<T>(string key, Core.Diagnostics.Common.Metric<T> metric, string unit, string scope) where T : struct
     {

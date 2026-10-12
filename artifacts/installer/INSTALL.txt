@@ -19,3 +19,5 @@ Build/test: 0 warnings/errors; 310 checks passed.
 Actual 125/150 percent and mixed DPI testing: NOT RUN.
 Current installer lifecycle in isolation: NOT RUN.
 Do not run a write benchmark merely to test the UI.
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\ADMIN\Desktop\Bimal Works\Bimal Works\SSD\pixinit\build\release.ps1"

@@ -35,8 +35,8 @@ internal static partial class Program
             StorageDevice Device(string id) => new(id, id, id, StorageProtocol.Nvme, ConnectionBus.Nvme, DiagnosticCapabilities.Identity, DeviceAccess.Available)
             { InterfacePath = "path-" + id, InstanceId = "instance-" + id, MountPoints = [volume], CapacityBytes = 1_000_000 };
             int calls = 0; var consent = new Consent(true);
-            var vm = new BenchmarkViewModel(new FileBenchmarkEngine(manager), null, () => [Device(++calls == 1 ? "first" : "changed")], () => null, () => { }, consent)
-            { TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false };
+            var vm = new BenchmarkViewModel(new FileBenchmarkEngine(manager), () => [Device(++calls == 1 ? "first" : "changed")], () => null, () => { }, consent)
+            { TargetResolver = WorkflowTestTarget, UseUnbuffered = false, TargetDirectory = root, Preset = BenchmarkPreset.Custom, FileSizeMiB = 16, SequentialWrite = false, RandomWrite = false, RandomRead = false };
             await vm.RunAsync();
             Check(consent.Calls == 1 && vm.Result is null && vm.Status.Contains("mapping changed") && !Directory.EnumerateFiles(Path.Combine(root, OwnedBenchmarkFileManager.DirectoryName), "*.bin").Any(), "Target mapping is revalidated after consent and before file creation");
 

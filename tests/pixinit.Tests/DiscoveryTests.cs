@@ -27,6 +27,51 @@ internal static partial class Program
     private static bool Invalid(Action action) { try { action(); return false; } catch (InvalidDataException) { return true; } }
     private static void DiscoveryTests()
     {
+        byte[] ProtocolResponse(uint protocol, byte[] payload)
+        {
+            var b = new byte[48 + payload.Length]; Put(b, 0, 48); Put(b, 4, 48); Put(b, 8, protocol); Put(b, 12, 1); Put(b, 24, 40); Put(b, 28, (uint)payload.Length); payload.CopyTo(b, 48); return b;
+        }
+        var raid = Drive("raid", StorageProtocol.Unknown) with { Bus = ConnectionBus.Raid, NativeBusType = 8, IncursSeekPenalty = false, Serial = "SYNTHETIC-NVME" };
+        int probes = 0;
+        var nvmeRaid = StorageQueryService.ProbeRaid(raid, (_, _, _) => { probes++; return ProtocolResponse(3, SyntheticController()); }, default);
+        Check(probes == 1 && nvmeRaid.CanQueryNvme && nvmeRaid.Bus == ConnectionBus.Raid && nvmeRaid.RaidIdentifyRaw.Length == 4096, "RAID no-seek device requires validated attributed NVMe Identify and preserves reported bus/raw payload");
+        var ata = SyntheticIdentify(); Word(ata, 217, 1); Checksum(ata);
+        StorageDevice ProbeSata(string id) => StorageQueryService.ProbeRaid(raid with { Id = id, Serial = "SYNTHETIC-SERIAL" }, (_, request, _) => {
+            if (BinaryPrimitives.ReadUInt32LittleEndian(request!.AsSpan(8)) == 3) throw new Win32Exception(50);
+            return ProtocolResponse(2, ata);
+        }, default);
+        var sataRaid = ProbeSata("raid-sata1");
+        Check(sataRaid.CanQuerySata && sataRaid.Media == StorageMedia.Ssd && sataRaid.Bus == ConnectionBus.Raid, "RAID ATA Identify establishes SATA and SSD only from rotation word one");
+        var mixedRaid = new[] { nvmeRaid, sataRaid, ProbeSata("raid-sata2") };
+        Check(mixedRaid.Count(d => d.Protocol == StorageProtocol.Nvme) == 1 && mixedRaid.Count(d => d.Protocol == StorageProtocol.Sata) == 2 && mixedRaid.All(d => d.Protocol != StorageProtocol.Unknown), "Validated simulated RAID inventory has one NVMe and two SATA devices");
+        var failedRaid = StorageQueryService.ProbeRaid(raid, (_, _, _) => throw new Win32Exception(5), default);
+        Check(failedRaid.Protocol == StorageProtocol.Unknown && failedRaid.Access == DeviceAccess.AccessDenied && failedRaid.Limitations.Contains("administrator"), "Denied RAID probes retain unknown protocol with actionable access message");
+        var mismatchRaid = StorageQueryService.ProbeRaid(raid with { Serial = "DIFFERENT" }, (_, _, _) => ProtocolResponse(3, SyntheticController()), default);
+        Check(mismatchRaid.Protocol == StorageProtocol.Unknown && !mismatchRaid.RaidProtocolVerified, "RAID controller identity mismatch cannot classify a selected disk");
+        var malformedRaid = StorageQueryService.ProbeRaid(raid, (_, _, _) => new byte[3], default);
+        Check(malformedRaid.Protocol == StorageProtocol.Unknown, "Malformed RAID Identify responses remain unidentified");
+        var heuristic = RaidDisplayFallback.Apply([raid with { Model = "NVMe 512GB SSD", Access = DeviceAccess.Limited, CapacityBytes = 512000000000, DiskNumber = 2 }], [new("SYNTHETIC-NVME", 512000000000, 8, 4, "2")]).Single();
+        Check(heuristic.Protocol == StorageProtocol.Nvme && heuristic.ProtocolHeuristic && !heuristic.CanQueryNvme && heuristic.Media == StorageMedia.Ssd, "RAID model/MSFT fallback displays NVMe SSD without authorizing transport after invalid Identify");
+        var heuristicSata = RaidDisplayFallback.Apply([raid with { Model = "2.5 SATA SSD 256GB", Access = DeviceAccess.Limited }], []).Single();
+        Check(heuristicSata.Protocol == StorageProtocol.Sata && !heuristicSata.CanQuerySata && heuristicSata.MediaInferred, "RAID SATA model fallback is explicitly inferred and cannot authorize ATA commands");
+        Check(WindowsDiskDiscovery.Deduplicate([raid with { Serial = "SAME", CapacityBytes = 100, DiskNumber = 0 }, raid with { Id = "different", Serial = "SAME", CapacityBytes = 100, DiskNumber = 1 }]).Count == 2, "Distinct physical disk numbers with duplicated controller serial remain separate");
+        var clientDisks = new[] {
+            sataRaid with { Id = "evm", DiskNumber = 1, Model = "EVM25/128GB", Serial = "ES1HNO925134418", CapacityBytes = 128_035_676_160 },
+            raid with { Id = "sata256", DiskNumber = 0, Model = "2.5 SATA SSD 256GB", Serial = "SATA256", CapacityBytes = 256_060_514_304, Access = DeviceAccess.Limited },
+            raid with { Id = "nvme512", DiskNumber = 2, Model = "NVMe 512GB SSD", Serial = "NVME512", CapacityBytes = 512_110_190_592, Access = DeviceAccess.Limited }
+        };
+        var clientInventory = RaidDisplayFallback.Apply(WindowsDiskDiscovery.Deduplicate([.. clientDisks, clientDisks[1] with { Id = "duplicate-interface" }]), [
+            new("SATA256", 256_060_514_304, 8, 4, "0", "2.5 SATA SSD 256GB"),
+            new("NVME512", 512_110_190_592, 8, 4, "2", "NVMe 512GB SSD")]);
+        Check(clientInventory.Count == 3 && clientInventory.Count(d => d.Protocol == StorageProtocol.Sata) == 2 && clientInventory.Count(d => d.Protocol == StorageProtocol.Nvme) == 1, "Client-shaped RAID simulation deduplicates and routes all three disks without fabricated readings");
+        Check(clientInventory.Where(d => d.ProtocolHeuristic).All(d => d.Access == DeviceAccess.Limited && !d.CanQuerySata && !d.CanQueryNvme && d.ProtocolBadge.Contains("Heuristic") && d.Media == StorageMedia.Ssd), "Windows Storage SSD reports permit navigation but never authorize heuristic SMART access");
+        Check(clientInventory[0].CanQuerySata && clientInventory[0].Serial == "ES1HNO925134418", "Validated EVM identity remains queryable with full serial retained, without an authenticity claim");
+        var genericRaid = raid with { Model = "Any brand SSD", DiskNumber = 4, CapacityBytes = 1_000_000_000, Serial = "TEST-ONLY", Access = DeviceAccess.Limited };
+        var unknownSsd = RaidDisplayFallback.Apply([genericRaid], [new("TEST-ONLY", 1_000_000_000, 8, 4, "4")]).Single();
+        Check(unknownSsd.Protocol == StorageProtocol.Unknown && unknownSsd.Media == StorageMedia.Ssd && unknownSsd.HasStorageOverview, "Generic SSD media does not imply SATA or NVMe; physical overview remains available");
+        var unknownHdd = RaidDisplayFallback.Apply([genericRaid with { Model = "Any brand", IncursSeekPenalty = true }], [new("TEST-ONLY", 1_000_000_000, 8, 3, "4")]).Single();
+        Check(unknownHdd.Media == StorageMedia.Hdd && unknownHdd.MediaDisplay == "HDD (reported)", "Windows Storage HDD media retained independently of protocol");
+        Check(!(genericRaid with { Bus = ConnectionBus.Virtual }).HasStorageOverview && !(genericRaid with { CapacityBytes = null }).HasStorageOverview, "Virtual and unobserved-capacity entries remain additional devices");
         Check(Marshal.SizeOf<StorageNative.InterfaceData>() == 32 && Marshal.SizeOf<StorageNative.DeviceInfo>() == 32 && IntPtr.Size == 8,
             "SetupAPI fixed structures match validated x64 ABI");
         Check(DescriptorParser.Classify(11).Protocol == StorageProtocol.Sata && DescriptorParser.Classify(17).Protocol == StorageProtocol.Nvme, "Direct Windows SATA/NVMe bus classification");
@@ -74,7 +119,7 @@ internal static partial class Program
         var incomplete = WindowsDiskDiscovery.ReadDevice("incomplete", null, default, BadCapacity);
         Check(incomplete.Protocol == StorageProtocol.Sata && incomplete.CapacityBytes is null && incomplete.Model == first.Model && incomplete.Limitations.Contains("capacity"), "Invalid capacity preserves a classified device with other real identity fields");
         Check(first.CapacityBytes == 500_000_000_000 && first.DiskNumber == 2 && first.Firmware is null, "Real query fields retained when optional firmware/media unavailable");
-        Check(WindowsDiskDiscovery.Deduplicate([first, second, first]).Count == 2, "Duplicate path records removed; matching serials do not merge distinct disks");
+        Check(WindowsDiskDiscovery.Deduplicate([first, second, first]).Count == 1, "Duplicate physical-number/serial/capacity records merged");
         Check(WindowsDiskDiscovery.Deduplicate([first with { Serial = null }, second with { Serial = null }]).Count == 2, "Missing serials preserve distinct identities");
         var conflict = WindowsDiskDiscovery.Deduplicate([first, first with { Bus = ConnectionBus.Nvme, Protocol = StorageProtocol.Nvme }]).Single();
         Check(conflict.Protocol == StorageProtocol.Unknown && conflict.Limitations.Contains("Conflicting"), "Conflicting duplicate bus evidence withholds classification");
@@ -120,6 +165,20 @@ internal static partial class Program
         Check(vm.SataEmpty && !vm.IsStale && vm.Sata.Device is null, "Empty successful enumeration clears previous device and stale status");
         controlled.Completion = new(TaskCreationOptions.RunContinuationsAsynchronously); pending = vm.ScanAsync(); controlled.Completion.SetResult([Drive("usb", StorageProtocol.Unknown)]); await pending;
         Check(vm.OtherExpanded && vm.OperationStatus.Contains("Unidentified"), "Unknown-only discovery directs attention to Unidentified devices in Diagnostics");
+        controlled.Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        pending = vm.ScanAsync();
+        controlled.Completion.SetResult([Drive("nvme", StorageProtocol.Nvme), Drive("sata1", StorageProtocol.Sata), Drive("sata2", StorageProtocol.Sata)]);
+        await pending;
+        Check(vm.AllDevices.Count == 3 && vm.NvmeDevices.Count == 1 && vm.SataDevices.Count == 2 && vm.OperationStatus.Contains("1 NVMe + 2 SATA"), "Mixed three-disk inventory and protocol counts retained");
+        vm.SelectedDisk = vm.SataDevices[1];
+        Check(vm.SelectedSata?.Id == "sata2" && vm.ActiveTab == 0, "All-disk selector selects second SATA device");
+        vm.SelectedDisk = vm.NvmeDevices[0];
+        Check(vm.SelectedNvme?.Id == "nvme" && vm.ActiveTab == 1, "All-disk selector switches to NVMe");
+        controlled.Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        pending = vm.ScanAsync();
+        controlled.Completion.SetResult([Drive("blocked-generic", StorageProtocol.Unknown) with { Bus = ConnectionBus.Raid, CapacityBytes = 1_000_000_000 }]);
+        await pending; vm.SelectedDisk = vm.AllDevices.Single();
+        Check(vm.WorkspaceIndex == 2 && vm.OtherDevices.Count == 1 && vm.Other.Device?.Id == "blocked-generic", "Unconfirmed physical drive routes to Additional Devices after removing duplicate overview");
         var once = new CountedDiscovery(); vm = new(new DiscoveryCoordinator(once));
         await vm.StartInitialScanAsync(); await vm.StartInitialScanAsync();
         Check(once.Calls == 1, "Shell visibility triggers at most one automatic discovery");
