@@ -3,6 +3,7 @@ using pixinit.Core.Abstractions;
 using pixinit.Core.Devices;
 using pixinit.Core.Diagnostics.Nvme;
 using pixinit.Core.Assessment;
+using pixinit.Infrastructure.Logging;
 
 namespace pixinit.Infrastructure.Windows.Nvme;
 
@@ -20,6 +21,8 @@ public sealed class WindowsNvmeDiagnosticsProvider : INvmeDiagnosticsProvider
         {
             token.ThrowIfCancellationRequested(); progress?.Report(stage);
             var response = transport.Query(device, op, token);
+            string suffix = string.IsNullOrWhiteSpace(device.Serial) ? "unknown" : device.Serial[^Math.Min(4, device.Serial.Length)..];
+            DiscoveryLog.Write($"NVMe diagnostic: disk={device.DiskNumber}; serial ending={suffix}; BusType={device.NativeBusType?.ToString() ?? device.Bus.ToString()}; MediaType={device.Media}; IsHeuristic={device.ProtocolHeuristic}; Protocol attempted=NVMe {op}; SMART passthrough result={response.Outcome}; error code={response.NativeError?.ToString() ?? "none"}; {response.Explanation}");
             if (response.Succeeded) try { parse(response.Payload); } catch (InvalidDataException ex) { response = response with { Outcome = NvmeOutcome.InvalidResponse, Explanation = ex.Message }; }
             responses.Add(response); token.ThrowIfCancellationRequested();
         }

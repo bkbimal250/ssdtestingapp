@@ -9,6 +9,7 @@ using pixinit.Core.Diagnostics.Nvme;
 using pixinit.Core.Diagnostics.Sata;
 using pixinit.Infrastructure.Benchmarking;
 using pixinit.ViewModels.Benchmark;
+using pixinit.ViewModels.Sata;
 
 namespace pixinit.Tests;
 internal static partial class Program
@@ -20,7 +21,7 @@ internal static partial class Program
     private static async Task StorageSpecsTests()
     {
         Check(HealthAssessor.TemperatureState(74.9) == ThermalState.Green && HealthAssessor.TemperatureState(75) == ThermalState.Yellow && HealthAssessor.TemperatureState(80) == ThermalState.Yellow && HealthAssessor.TemperatureState(80.1) == ThermalState.Red && HealthAssessor.TemperatureState(null) == ThermalState.Unknown, "Temperature assessment preserves requested strict boundaries and unavailable state");
-        Check(new TbwInfo(540).RemainingPercent == 10 && HealthAssessor.EnduranceState(new TbwInfo(541)).Contains("Warning") && new TbwInfo(null).RemainingPercent is null && new TbwInfo(800).RemainingPercent == 0, "Reference TBW remaining is bounded, unavailable-aware and warns below ten percent");
+        Check(new TbwInfo(540).RemainingPercent == 10 && HealthAssessor.EnduranceState(new TbwInfo(541)).Contains("Warning") && new TbwInfo(null).RemainingPercent is null && new TbwInfo(0).RemainingPercent is null && new TbwInfo(800).RemainingPercent == 0, "Reference TBW remaining is bounded, unavailable-aware, requires a positive host-write reading and warns below ten percent");
         Check(HealthAssessor.EnduranceState(new TbwInfo(590, InterpretationVerified: false)) == "Unverified SMART interpretation", "Unverified SATA units cannot produce a confirmed endurance warning");
         var largeRead = BenchmarkPolicy.Quick with { FileSizeBytes = 1024 * BenchmarkPolicy.MiB, Operations = BenchmarkOperation.SequentialRead };
         BenchmarkPolicy.Validate(largeRead, 20 * 1024 * BenchmarkPolicy.MiB);
@@ -36,6 +37,13 @@ internal static partial class Program
         SataSmartAttribute Row(byte id, ulong raw) => new(id, "test", null, null, null, "test", "test", "test") { RawBytes = Enumerable.Range(0, 6).Select(i => (byte)(raw >> (i * 8))).ToArray() };
         var sata = SataResultMapper.Map(Drive("sata-spec", pixinit.Core.Devices.StorageProtocol.Sata), null, new([Row(194, 76), Row(241, 1_000_000), Row(9, 20)], []), null, [command], []);
         Check(sata.Temperature.Value == 76 && sata.PowerOnHours == 20 && sata.Tbw is { InterpretationVerified: false } && sata.Tbw.WrittenTB == 1_000_000 * 512d / 1e12, "SATA conventional 194/241/9 conversions retain their unverified vendor encoding disclosure");
+        var kingston = Drive("kingston", pixinit.Core.Devices.StorageProtocol.Sata) with { Model = "KINGSTON SA400S37240G", Serial = "50026B7682632542", CapacityBytes = 240_000_000_000 };
+        var highUsageZero = SataResultMapper.Map(kingston, null, new([Row(241, 100_000), Row(242, 200_000)], []), null, [command], [], 66.8);
+        Check(highUsageZero.Tbw is { WrittenTB: null, RatedTB: 80 } && highUsageZero.UsageUsedPercent == 66.8 && highUsageZero.Tbw.Source.Contains("unavailable") && highUsageZero.Tbw.RemainingPercent is null, "SATA near-zero SMART 241 at high filesystem usage is unavailable, with the 240GB Kingston class reference");
+        var sataVm = new SataViewModel(); sataVm.SetDevice(kingston); sataVm.Apply(highUsageZero);
+        Check(sataVm.HostWrites.Contains("Unavailable") && sataVm.HostWrites.Contains("66.8%") && sataVm.HostWrites.Contains("50026B7682632542") && sataVm.Endurance.Contains("80 TBW estimated for 240GB class"), "SATA UI explains inaccessible Kingston writes and displays its estimated 80 TBW reference");
+        var lowUsageZero = SataResultMapper.Map(kingston, null, new([Row(241, 100_000)], []), null, [command], [], 0.1);
+        Check(lowUsageZero.Tbw?.WrittenTB == 100_000 * 512d / 1e12 && lowUsageZero.Tbw.RatedTB == 80, "SATA near-zero host writes remain available at low filesystem usage and use the 80 TBW 240GB class reference");
         var duplicate = SataResultMapper.Map(Drive("sata-spec", pixinit.Core.Devices.StorageProtocol.Sata), null, new([Row(194, 76), Row(194, 77), Row(241, ulong.MaxValue)], []), null, [command], []);
         Check(duplicate.Temperature.Value is null && duplicate.Tbw!.WrittenTB is null, "Duplicate and all-FF SATA fields are not interpreted");
         SpeedSample Sample(int sec, long bytes, double interval = 1) => new(sec, bytes / interval / 1e6) { Bytes = bytes, IntervalSeconds = interval };

@@ -19,6 +19,9 @@ public sealed record SataDiagnostics(string DeviceId, Metric<bool> SmartPassed,
     public TbwInfo? Tbw { get; init; }
     public ThermalInfo? Thermal { get; init; }
     public double? PowerOnHours { get; init; }
+    public double? HostReadsTB { get; init; }
+    public double? UsageUsedPercent { get; init; }
+    public ulong? PowerCycles { get; init; }
     public HealthAssessment? Assessment { get; init; }
     public AtaIdentity? Identity { get; init; }
     public IReadOnlyList<AtaCommandResult> Commands { get; init; } = [];

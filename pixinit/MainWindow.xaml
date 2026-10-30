@@ -88,32 +88,7 @@
     </TabControl></Grid>
       </TabItem>
     <TabItem x:Name="BenchmarkTab" Header="_Benchmark" AutomationProperties.Name="Benchmark"><Grid><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><benchmark:BenchmarkView Margin="16" DataContext="{Binding Benchmark}"/></ScrollViewer></Grid></TabItem>
-<TabItem x:Name="OtherDevicesTab" Header="_Additional Devices" AutomationProperties.Name="Additional Devices"><TabItem.Style><Style TargetType="TabItem"><Style.Triggers><DataTrigger Binding="{Binding OtherDevices.Count}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TabItem.Style><ScrollViewer VerticalScrollBarVisibility="Auto"><Border Style="{StaticResource Card}" Margin="16" VerticalAlignment="Top" Padding="12"><Expander x:Name="UnidentifiedDevicesSection" Header="{Binding OtherSummary}" IsExpanded="True" AutomationProperties.Name="Unidentified devices"><Expander.Style><Style TargetType="Expander"><Setter Property="Foreground" Value="#25364D"/><Style.Triggers><DataTrigger Binding="{Binding OtherDevices.Count}" Value="0"><Setter Property="Foreground" Value="#64748B"/></DataTrigger></Style.Triggers></Style></Expander.Style><ScrollViewer MaxHeight="620" VerticalScrollBarVisibility="Auto">
-      <StackPanel Margin="0,8,0,0"><TextBlock Text="Devices whose SATA or NVMe protocol could not be established appear here." Style="{StaticResource Muted}"/>
-        <TextBlock Text="Underlying protocol is not established for these disks. USB, RAID, ATA and virtual buses do not establish SATA or NVMe." Style="{StaticResource Muted}" />
-        <ListBox ItemsSource="{Binding OtherDevices}" SelectedItem="{Binding SelectedOther}" MaxHeight="520" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Unidentified devices">
-<ListBox.Style><Style TargetType="ListBox"><Style.Triggers><DataTrigger Binding="{Binding OtherDevices.Count}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></ListBox.Style>
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <Border Style="{StaticResource Card}" Padding="12"><StackPanel>
-                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding DiscoverySummary}" Style="{StaticResource Muted}" />
-                <Expander Header="Reported device details" AutomationProperties.Name="Unidentified disk details">
-                  <StackPanel Margin="10,6,0,6">
-                    <TextBlock Text="{Binding Firmware, StringFormat=Firmware: {0}, TargetNullValue=Unavailable}" />
-                    <TextBlock Text="{Binding CapacityBytes, StringFormat=Physical-disk capacity in bytes: {0}, TargetNullValue=Unavailable}" />
-                    <TextBlock Text="{Binding Source, StringFormat=Source: {0}}" />
-                    <TextBlock Text="{Binding IdentityEvidence, StringFormat=Identity evidence: {0}}" />
-                    <TextBlock Text="{Binding InterfacePath, StringFormat=Interface: {0}, TargetNullValue=Unavailable}" />
-                    <ItemsControl ItemsSource="{Binding MountPoints}" AutomationProperties.Name="Mapped mount points" />
-                  </StackPanel>
-                </Expander>
-              </StackPanel></Border>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-      </StackPanel>
-    </ScrollViewer></Expander></Border></ScrollViewer></TabItem>
+
 
 
     </TabControl>

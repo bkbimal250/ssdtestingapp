@@ -174,13 +174,7 @@ internal static partial class Program
         var workspace = (TabControl)window.FindName("WorkspaceTabs");
         Check(!Find<TextBlock>(window).Any(t => t.Text == "Historical diagnostic snapshots") && !Find<Button>(window).Any(b => Equals(b.Content, "Close history")), "History popup and actions are completely removed");
         workspace.SelectedIndex = 0; Pump();
-        workspace.SelectedIndex = 2; Pump();
-        Check(workspace.Items.Count == 3 && Find<Expander>(window).Any(e => Equals(e.Header, "Additional Devices · 0")), "Additional Devices retains its own tab and hides when empty");
-        Capture(window, "other-unidentified-tab-desktop.png");
-        var unidentifiedSection = (Expander)window.FindName("UnidentifiedDevicesSection");
-        unidentifiedSection.IsExpanded = true; Pump();
-        Check(!Find<pixinit.Views.Shared.FirstPageView>(unidentifiedSection).Any(), "Unidentified area never duplicates the main storage overview");
-        unidentifiedSection.IsExpanded = false;
+        Check(workspace.Items.Count == 2 && !Find<Expander>(window).Any(e => Equals(e.Header, "Additional Devices · 0")), "Only Diagnostics and Benchmark workspace tabs remain");
         ((TabControl)window.FindName("WorkspaceTabs")).SelectedIndex = 0;
         tabs.SelectedIndex = 1; window.Width = 1366; window.Height = 768; Pump(); Capture(window, "post-phase7-nvme-1366x768.png");
         window.Width = 1800; window.Height = 1000; Pump(); Capture(window, "post-phase7-nvme-desktop.png");

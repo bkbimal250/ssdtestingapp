@@ -4,7 +4,7 @@
 #define MyAppExeName "PIXINIT.exe"
 
 [Setup]
-AppId={{5EB9D365-36FB-4FA2-95AD-8EA64BACAB91}
+AppId={{PIXINIT-1.0.0}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -12,7 +12,6 @@ VersionInfoVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=PIXINIT Storage Diagnostics installer
 DefaultDirName={autopf}\PIXINIT
-UsePreviousAppDir=no
 DefaultGroupName=PIXINIT
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
@@ -22,6 +21,7 @@ OutputDir=..\artifacts\installer
 OutputBaseFilename=PIXINIT-Setup-1.0.0-win-x64
 SetupIconFile=..\pixinit\Assets\pixinit.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayName=PIXINIT
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -32,7 +32,7 @@ RestartApplications=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
 
 [Files]
 Source: "..\artifacts\publish\win-x64\PIXINIT.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -42,4 +42,4 @@ Name: "{group}\PIXINIT"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\PIXINIT"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch PIXINIT"; Flags: nowait postinstall skipifsilent runascurrentuser
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch PIXINIT"; Flags: nowait postinstall skipifsilent

@@ -15,7 +15,7 @@ public static class DiscoveryLog
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
                 if (File.Exists(FilePath) && new FileInfo(FilePath).Length > 2_000_000) File.Move(FilePath, FilePath + ".previous", true);
-                var line = $"{DateTimeOffset.Now:O} {operation}{(error is null ? "" : $" | {error.GetType().Name}: {error.Message}; HRESULT=0x{error.HResult:X8}")}{(error is Win32Exception native ? $"; Win32={native.NativeErrorCode}" : "")}{Environment.NewLine}";
+                var line = $"{DateTimeOffset.Now:O} {operation}{(error is null ? "" : $" | {error.GetType().Name}: {error.Message}; HRESULT=0x{error.HResult:X8}")}{(error is Win32Exception native ? $"; Win32=0x{native.NativeErrorCode:X8}" : "")}{Environment.NewLine}";
                 File.AppendAllText(FilePath, line);
 
             }

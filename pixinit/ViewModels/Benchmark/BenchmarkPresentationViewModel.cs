@@ -46,7 +46,7 @@ public sealed partial class BenchmarkViewModel
     internal static string DescribeSessionProblem(BenchmarkSession? session) => session is null || (session.Completion == BenchmarkCompletion.Completed && session.CleanupSucceeded) ? "" :
         $"{session.Completion}: {session.Reason ?? "No additional error was recorded."}\n" + (session.CleanupSucceeded ? "Temporary benchmark file was cleaned. Reported writes are cumulative I/O, not space still occupied." : $"Cleanup needs attention. Owned file: {session.BenchmarkFilePath ?? "Path unavailable"}. Use Retry owned-file cleanup; do not delete unrelated files.");
     public double TbwWrittenPercent => Tbw is { WrittenTB: double written, RemainingPercent: not null } value && value.RatedTB > 0 ? Math.Clamp(written / value.RatedTB * 100, 0, 100) : 0;
-    public string TbwScaleDisplay => Tbw?.WrittenTB is double written ? $"{written:F3} / {Tbw.RatedTB:F0} TB {(Tbw.RatingVerified ? "manufacturer endurance" : "unverified reference")}" : "Diagnostics not yet queried - Run Diagnostics Now";
+    public string TbwScaleDisplay => Tbw?.WrittenTB is double written ? $"{written:F3} / {Tbw.RatedTB:F0} TB {(Tbw.RatingVerified ? "manufacturer endurance" : "unverified reference")}" : Tbw is { RatedTB: > 0 } unavailable ? $"Host writes unavailable; {unavailable.RatedTB:F0} TBW estimated reference" : "Diagnostics not yet queried - Run Diagnostics Now";
     public string TemperatureValue => Thermal?.ObservedC is double c ? $"{c:F1} °C" : "Not observed";
     public string TemperatureObservation => Thermal?.ObservedAt is { } observed ? $"{Thermal.State} | Observed {observed.ToLocalTime():g}" : "Run Diagnostics to observe temperature";
     public bool HasBenchmarkResult => result is not null;

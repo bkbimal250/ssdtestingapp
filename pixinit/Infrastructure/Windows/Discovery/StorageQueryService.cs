@@ -21,12 +21,14 @@ internal static class StorageQueryService
         StorageDevice? Attempt(string name, Func<StorageDevice> action)
         {
             token.ThrowIfCancellationRequested();
-            try { var result = action(); DiscoveryLog.Write($"RAID pass-through attempt: {name} success; disk={device.DiskNumber}"); return result; }
+            string serialSuffix = string.IsNullOrWhiteSpace(device.Serial) ? "unknown" : device.Serial[^Math.Min(4, device.Serial.Length)..];
+            string context = $"disk={device.DiskNumber}; serial ending={serialSuffix}; BusType={device.NativeBusType?.ToString() ?? device.Bus.ToString()}; MediaType={device.Media}; IsHeuristic={device.ProtocolHeuristic}; protocol attempted={name}";
+            try { var result = action(); DiscoveryLog.Write($"RAID pass-through probe: {context}; result=success; error code=none"); return result; }
             catch (Exception ex) when (ex is Win32Exception or InvalidDataException or OverflowException)
             {
                 denied |= ex is Win32Exception { NativeErrorCode: 5 };
                 notes.Add($"{name}: {ex.Message}");
-                DiscoveryLog.Write($"RAID pass-through attempt: {name} failed; disk={device.DiskNumber}", ex);
+                DiscoveryLog.Write($"RAID pass-through probe: {context}; result=failed; error code={(ex is Win32Exception win32 ? win32.NativeErrorCode.ToString() : "none")}", ex);
                 return null;
             }
         }

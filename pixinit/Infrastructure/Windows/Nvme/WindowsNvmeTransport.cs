@@ -51,11 +51,15 @@ internal static class NvmeQueryPolicy
 internal static class NvmeIdentityGuard
 {
     internal static void Require(StorageDevice d)
-    { if (!d.CanQueryNvme || string.IsNullOrWhiteSpace(d.InterfacePath)) throw new InvalidOperationException("Only a confirmed direct NVMe interface can receive NVMe queries."); }
-    internal static bool Matches(StorageDevice a, StorageDevice b) => b.CanQueryNvme && a.Bus == b.Bus && a.NativeBusType == b.NativeBusType &&
-        string.Equals(a.InterfacePath, b.InterfacePath, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(b.Model) && a.Model.Trim() == b.Model.Trim() &&
-        (a.DiskNumber is null || a.DiskNumber == b.DiskNumber) && (string.IsNullOrWhiteSpace(a.Serial) || a.Serial.Trim() == b.Serial?.Trim()) &&
-        (a.Firmware is null || a.Firmware == b.Firmware) && (a.CapacityBytes is null || a.CapacityBytes == b.CapacityBytes);
+    { if (!d.CanQueryNvme || string.IsNullOrWhiteSpace(d.InterfacePath)) throw new InvalidOperationException("An NVMe query route and device interface are required."); }
+    internal static bool Matches(StorageDevice a, StorageDevice b)
+    {
+        if (a.Bus != b.Bus || a.NativeBusType != b.NativeBusType || !string.Equals(a.InterfacePath, b.InterfacePath, StringComparison.OrdinalIgnoreCase) ||
+            (a.DiskNumber is not null && a.DiskNumber != b.DiskNumber) || (a.CapacityBytes is not null && a.CapacityBytes != b.CapacityBytes)) return false;
+        if (a.ProtocolHeuristic) return true;
+        return b.CanQueryNvme && !string.IsNullOrWhiteSpace(b.Model) && a.Model.Trim() == b.Model.Trim() &&
+            (string.IsNullOrWhiteSpace(a.Serial) || a.Serial.Trim() == b.Serial?.Trim()) && (a.Firmware is null || a.Firmware == b.Firmware);
+    }
 }
 internal sealed class WindowsNvmeTransport : INvmeTransport
 {

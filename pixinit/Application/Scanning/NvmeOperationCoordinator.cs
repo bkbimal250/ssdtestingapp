@@ -9,7 +9,7 @@ public sealed class NvmeOperationCoordinator(INvmeDiagnosticsProvider provider, 
     public async Task<NvmeDiagnostics> ReadAsync(StorageDevice device, CancellationToken token, IProgress<string>? progress = null)
     {
         if (!device.CanQueryNvme)
-            throw new InvalidOperationException("Only confirmed NVMe devices can receive NVMe diagnostics.");
+            throw new InvalidOperationException("This selected device has no NVMe diagnostic query route.");
         using (gate.Enter())
         {
             var result = await Task.Run(() => provider.ReadAsync(device, token, progress), CancellationToken.None).ConfigureAwait(false);

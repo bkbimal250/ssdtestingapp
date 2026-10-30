@@ -6,7 +6,7 @@ namespace pixinit.Core.Diagnostics.Sata;
 public static class SataResultMapper
 {
     public static SataDiagnostics Map(StorageDevice device, AtaIdentity? identity, SmartAttributes? attributes,
-        SmartThresholds? thresholds, IReadOnlyList<AtaCommandResult> commands, IReadOnlyList<string> discrepancies)
+        SmartThresholds? thresholds, IReadOnlyList<AtaCommandResult> commands, IReadOnlyList<string> discrepancies, double? usageUsedPercent = null)
     {
         var response = commands.FirstOrDefault(c => c.Operation == AtaOperation.SmartStatus);
         bool? passed = response is null ? null : SmartReturnStatus.Interpret(response);
@@ -34,16 +34,28 @@ public static class SataResultMapper
             return raw;
         }
         var raw194 = Raw(194); double? temp194 = raw194 is ulong rawTemp && (rawTemp & 255) is > 0 and < 128 ? rawTemp & 255 : null;
+        string temperatureSource = device.Bus == ConnectionBus.Raid ? "SMART 194 via RAID fallback - unverified units" : "SMART 194 raw low byte; conventional encoding, vendor interpretation unverified";
         var temp = temp194 is double t ? new Metric<double>(t, "°C", Availability.Available,
-            "SMART 194 raw low byte; conventional encoding, vendor interpretation unverified", dataResponse!.ObservedAt) : Metric<double>.Missing("°C");
+            temperatureSource, dataResponse!.ObservedAt) : Metric<double>.Missing("°C");
         var written = Raw(241);
+        var read = Raw(242);
+        bool suspiciousUsage = usageUsedPercent is > 10;
+        if (suspiciousUsage && written is ulong writtenRaw && writtenRaw * 512d / 1e12 < 0.0005) written = null;
+        if (suspiciousUsage && read is ulong readRaw && readRaw * 512d / 1e12 < 0.0005) read = null;
+        var endurance = ManufacturerEnduranceCatalog.EstimateSata(device);
+        string enduranceText = endurance is { } estimate
+            ? $"{estimate.Source}. SATA SMART units remain unverified."
+            : "Unavailable - no capacity-class TBW estimate. SATA SMART units remain unverified.";
         ata += $"\nPower-on hours (SMART 9 assumed LE48 hours): {Raw(9)?.ToString() ?? "Unavailable"}; vendor units unverified.";
         return new(device.Id, smart, temp, Metric<double>.Missing("%"), attributes?.Entries ?? [],
-            "Unavailable: no verified vendor/model interpretation. SMART 194/241/9 conversions use conventional encodings and remain unverified for this vendor.", ata,
+            enduranceText, ata,
             $"SATA capability word: {(identity?.SataCapabilities is ushort caps ? $"0x{caps:X4} (supported features only)" : "Unavailable")}\nNegotiated SATA speed: unavailable; maximum capability is not current speed.")
         {
-            Tbw = new(written is ulong lbas ? lbas * 512d / 1e12 : null, InterpretationVerified: false,
-                Source: "SMART 241 assumed LE48 count of 512-byte LBAs; vendor encoding and units unverified"),
+            Tbw = new(written is ulong lbas ? lbas * 512d / 1e12 : null, RatedTB: endurance?.RatedTB ?? 0, InterpretationVerified: false,
+                Source: written is null ? "SMART 241 unavailable or suspicious zero; RAID/controller passthrough did not provide a usable counter" : "SMART 241 assumed LE48 count of 512-byte LBAs; vendor encoding and units unverified"),
+            HostReadsTB = read is ulong readLbas ? readLbas * 512d / 1e12 : null,
+            UsageUsedPercent = usageUsedPercent,
+            PowerCycles = Raw(12),
             Thermal = ThermalInfo.FromMetric(temp, false),
             PowerOnHours = Raw(9) is ulong hours ? hours : null,
             Identity = identity, Commands = commands.ToArray(), Discrepancies = string.Join("\n", discrepancies),

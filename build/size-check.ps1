@@ -3,7 +3,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $publish = Join-Path $root 'artifacts\publish\win-x64'
 $installer = Join-Path $root 'artifacts\installer\PIXINIT-Setup-1.0.0-win-x64.exe'
-if (-not (Test-Path -LiteralPath $publish) -or -not (Test-Path -LiteralPath $installer)) { throw 'Build the release before checking size.' }
+if (-not (Test-Path -LiteralPath $publish)) { throw 'Build the release before checking size.' }
+if (-not (Test-Path -LiteralPath $installer)) { throw 'The Windows installer is missing. Run build/release.ps1 to produce it.' }
 if (-not (Test-Path -LiteralPath (Join-Path $publish 'PIXINIT.exe'))) { throw 'Published PIXINIT.exe is missing.' }
 $publishedBytes = (Get-ChildItem -LiteralPath $publish -Recurse -File | Measure-Object -Property Length -Sum).Sum
 $installerBytes = (Get-Item -LiteralPath $installer).Length
@@ -12,4 +13,5 @@ foreach ($item in @(@{ Name='Published application'; Bytes=$publishedBytes }, @{
     '{0}: {1}: {2:N2} MB / {3:N2} MiB ({4} bytes)' -f $status, $item.Name, ($item.Bytes / 1000000), ($item.Bytes / 1MB), $item.Bytes
 }
 if ($publishedBytes -ge $LimitBytes -or $installerBytes -ge $LimitBytes) { exit 1 }
-'PASS: Both artifacts are below 100 MB.'
+"Installer path: $installer"
+'PASS: Published application and Windows installer are below 100 MB.'

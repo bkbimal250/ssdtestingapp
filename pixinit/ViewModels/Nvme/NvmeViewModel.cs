@@ -45,7 +45,7 @@ public sealed partial class NvmeViewModel : DeviceViewModel
     public string Errors => result?.ErrorDetails ?? "Media errors, unsafe shutdowns and error log entries are unavailable.";
     public string IdentityStatus => result?.IdentitySummary ?? "Identity comparison not queried";
     public string Scope => result?.Responses.FirstOrDefault(r => r.Operation == NvmeOperation.Health)?.Scope ?? "SMART request scope unavailable";
-    public string HostReads => FriendlyData(0);
+    public string HostReads => result?.Health is null && Device?.ProtocolHeuristic == true ? "N/A - RAID controller blocks SMART passthrough - data from Windows Storage API" : FriendlyData(0);
     public string HostWrites => FriendlyData(1);
     public string PowerOnHours => Counter(6, "hours");
     public string PowerCycles => Counter(5, "cycles");
@@ -92,17 +92,25 @@ public sealed partial class NvmeViewModel : DeviceViewModel
     protected override void ClearResults() { result = null; NotifyResults(); }
 
     public string FirstPageWarnings => WarningSummary + "\n" + IdentityStatus;
+    public bool LimitedSmartFallback => Device?.ProtocolHeuristic == true && result?.Health is null;
+    public bool ShowWindowsFallbackIdentity => Device?.ProtocolHeuristic == true && result?.Controller is null;
+    public string LimitedDataSummary => ShowWindowsFallbackIdentity
+        ? LimitedSmartFallback
+            ? "Limited data - SMART unavailable via RAID controller, showing Windows Storage fallback - Model, Capacity, Firmware, Serial available"
+            : "Controller Identify unavailable via RAID; Windows Storage fallback identity is shown below."
+        : "";
+    public IReadOnlyList<InfoRow> LimitedFallbackRows => ShowWindowsFallbackIdentity ? IdentityRows().Take(8).ToArray() : [];
     public override IReadOnlyList<InfoRow> EntireSsdInfo => IdentityRows(result?.Controller?.Model, result?.Controller?.Firmware, result?.Controller?.Serial).Concat(new InfoRow[]
     {
-        new("Power-on hours", FirstPageValue(PowerOnHours)), new("Power cycles", FirstPageValue(PowerCycles)),
-        new("Host writes", FirstPageValue(HostWrites), HostWrites == "Unavailable"), new("Host reads", FirstPageValue(HostReads)),
+        new("Power-on hours", FirstPageValue(PowerOnHours), LimitedSmartFallback), new("Power cycles", FirstPageValue(PowerCycles), LimitedSmartFallback),
+        new("Host writes", FirstPageValue(HostWrites), HostWrites == "Unavailable" || LimitedSmartFallback), new("Host reads", FirstPageValue(HostReads), LimitedSmartFallback),
         new("Observed temperature", FirstPageValue(Temperature), result?.Thermal?.ObservedC is null),
         new("Available spare", FirstPageValue(AvailableSpare)), new("Percentage Used (consumed)", FirstPageValue(PercentageUsed)), new("Critical warning", FirstPageValue(CriticalWarning))
     }).ToArray();
     private void NotifyResults()
     {
         NotifyDetailRows();
-        foreach (var name in new[] { nameof(FirstPageWarnings), nameof(EntireSsdInfo), nameof(Result), nameof(SmartReadings), nameof(WarningSummary), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(WarningDetails), nameof(SpareThreshold), nameof(RawDetails), nameof(CriticalWarning), nameof(CriticalWarningRaw), nameof(Temperature), nameof(AvailableSpare), nameof(PercentageUsed), nameof(Usage), nameof(Thermal), nameof(ThermalSummary), nameof(Controller), nameof(Errors), nameof(IdentityStatus), nameof(Scope), nameof(HostReads), nameof(HostWrites), nameof(PowerOnHours), nameof(PowerCycles), nameof(UnsafeShutdowns), nameof(MediaErrors), nameof(QuerySummary) }) Changed(name);
+        foreach (var name in new[] { nameof(FirstPageWarnings), nameof(EntireSsdInfo), nameof(Result), nameof(SmartReadings), nameof(WarningSummary), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(WarningDetails), nameof(SpareThreshold), nameof(RawDetails), nameof(CriticalWarning), nameof(CriticalWarningRaw), nameof(Temperature), nameof(AvailableSpare), nameof(PercentageUsed), nameof(Usage), nameof(Thermal), nameof(ThermalSummary), nameof(Controller), nameof(Errors), nameof(IdentityStatus), nameof(Scope), nameof(HostReads), nameof(HostWrites), nameof(PowerOnHours), nameof(PowerCycles), nameof(UnsafeShutdowns), nameof(MediaErrors), nameof(QuerySummary), nameof(LimitedSmartFallback), nameof(ShowWindowsFallbackIdentity), nameof(LimitedDataSummary), nameof(LimitedFallbackRows) }) Changed(name);
     }
 }
 

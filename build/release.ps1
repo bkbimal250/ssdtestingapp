@@ -27,14 +27,25 @@ try {
     if ($forbidden) { throw "Development files entered the publish output: $($forbidden.FullName -join ', ')" }
 
     if (-not $InnoSetupPath) {
-        $candidates = @((Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'), 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe', 'C:\Program Files\Inno Setup 6\ISCC.exe')
+        $candidates = @('C:\Program Files (x86)\Inno Setup 6\ISCC.exe', (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'), 'C:\Program Files\Inno Setup 6\ISCC.exe')
         $InnoSetupPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
     }
-    if (-not $InnoSetupPath -or -not (Test-Path $InnoSetupPath)) { throw 'Inno Setup 6 compiler not found. Install JRSoftware.InnoSetup or pass -InnoSetupPath.' }
+    if (-not $InnoSetupPath -or -not (Test-Path $InnoSetupPath)) {
+        Write-Host 'Inno Setup 6 not found - installing...'
+        $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+        if (-not $winget) { throw 'Inno Setup 6 is required to build the installer, but winget.exe is unavailable.' }
+        & $winget.Source install --id JRSoftware.InnoSetup -e --silent --accept-package-agreements --accept-source-agreements
+        if ($LASTEXITCODE -ne 0) { throw "Inno Setup 6 installation failed through winget (exit code $LASTEXITCODE)." }
+        $InnoSetupPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $InnoSetupPath) { throw 'Inno Setup 6 installation completed but ISCC.exe was not found in a supported installation location.' }
+    }
 
     & $InnoSetupPath (Join-Path $root 'installer\pixinit.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
     $installer = Join-Path $root 'artifacts\installer\PIXINIT-Setup-1.0.0-win-x64.exe'
+    if (-not (Test-Path -LiteralPath $installer)) { throw 'Inno Setup reported success but the installer executable is missing.' }
+    $testingZip = Join-Path $root 'artifacts\publish\PIXINIT-1.0.0-win-x64.zip'
+    if (Test-Path -LiteralPath $testingZip) { Remove-Item -LiteralPath $testingZip -Force }
     & (Join-Path $PSScriptRoot 'size-check.ps1')
     if ($LASTEXITCODE -ne 0) { throw 'Release size verification failed.' }
     $hash = Get-FileHash $installer -Algorithm SHA256

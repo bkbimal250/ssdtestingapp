@@ -18,12 +18,20 @@ public sealed record StorageDevice(string Id, string Model, string? Serial,
     public string MediaDisplay => Media == StorageMedia.Ssd ? "SSD (reported)" : Media == StorageMedia.Hdd ? "HDD (reported)" : MediaInferred ? "SSD (inferred)" : Media.ToString();
     public string ProtocolBadge => $"{Protocol}{(Bus == ConnectionBus.Raid ? " via RAID controller" : Bus == ConnectionBus.Usb ? " via USB" : "")}{(ProtocolHeuristic ? " - Heuristic detection" : "")}";
     public string AccessBadge => ProtocolHeuristic ? "Limited access | Health not assessed" : $"{Access} | Health not queried";
-    public string SerialSuffix => string.IsNullOrWhiteSpace(Serial) ? "Serial unavailable" : $"Serial ending {Serial[^Math.Min(4, Serial.Length)..]}";
+    public string SerialSuffix => string.IsNullOrWhiteSpace(Serial) ? "Serial unavailable" : $"Serial ending {Serial.Trim().TrimEnd('.')[^Math.Min(4, Serial.Trim().TrimEnd('.').Length)..]}";
     public byte[] RaidIdentifyRaw { get; init; } = [];
     public bool RaidProtocolVerified { get; init; }
     public string ProtocolEvidence { get; init; } = "";
-    public bool CanQuerySata => Protocol == StorageProtocol.Sata && ((Bus == ConnectionBus.Sata && NativeBusType == 11) || (Bus == ConnectionBus.Raid && NativeBusType == 8 && RaidProtocolVerified));
-    public bool CanQueryNvme => Protocol == StorageProtocol.Nvme && ((Bus == ConnectionBus.Nvme && NativeBusType == 17) || (Bus == ConnectionBus.Raid && NativeBusType == 8 && RaidProtocolVerified));
+    // A heuristic protocol classification may attempt the same read-only query path.
+    // The provider still revalidates this disk's metadata and reports unsupported RAID passthrough.
+    public bool CanQuerySata => Protocol == StorageProtocol.Sata && ((Bus == ConnectionBus.Sata && NativeBusType == 11) || (Bus == ConnectionBus.Raid && NativeBusType == 8 && (RaidProtocolVerified || ProtocolHeuristic)));
+    public bool CanQueryNvme => Protocol == StorageProtocol.Nvme && ((Bus == ConnectionBus.Nvme && NativeBusType == 17) || (Bus == ConnectionBus.Raid && NativeBusType == 8 && (RaidProtocolVerified || ProtocolHeuristic)));
+    public string? WindowsFriendlyName { get; init; }
+    public string? WindowsSerial { get; init; }
+    public string? WindowsFirmware { get; init; }
+    public long? WindowsCapacityBytes { get; init; }
+    public string? WindowsAccessState { get; init; }
+    public string? WindowsHealthStatus { get; init; }
     public int? DiskNumber { get; init; }
     public string? InterfacePath { get; init; }
     public string? InstanceId { get; init; }

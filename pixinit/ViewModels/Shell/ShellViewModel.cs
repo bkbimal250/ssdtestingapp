@@ -27,25 +27,23 @@ public sealed class ShellViewModel : ObservableObject
     private CancellationTokenSource? sataCancellation;
     private long sataGeneration;
     public bool SataBusy { get; private set; }
-    public string SataOperationStatus { get; private set; } = "Not queried · Select a confirmed SATA drive to read diagnostics";
+    public string SataOperationStatus { get; private set; } = "Not queried · Select a SATA drive to read diagnostics";
     public ActionCommand ReadSataCommand { get; }
     private readonly NvmeOperationCoordinator? nvmeCoordinator;
     private CancellationTokenSource? nvmeCancellation;
     private long nvmeGeneration;
     public bool NvmeBusy { get; private set; }
-    public string NvmeOperationStatus { get; private set; } = "Not queried · Select a confirmed NVMe drive to read diagnostics";
+    public string NvmeOperationStatus { get; private set; } = "Not queried · Select an NVMe drive to read diagnostics";
     public ActionCommand ReadNvmeCommand { get; }
     private int workspaceIndex;
     public int WorkspaceIndex { get => workspaceIndex; set { workspaceIndex = value; Changed(); } }
     public bool IsStale { get; private set; }
-    public bool OtherExpanded { get; set; }
     public string Freshness => IsStale ? "Previous discovery is stale" : "Discovery and diagnostics are separate read-only actions";
-    public OtherDeviceViewModel Other { get; } = new();
     private StorageDevice? selectedOther;
     public StorageDevice? SelectedOther
     {
         get => selectedOther;
-        set { selectedOther = value; Other.SetDevice(value); Benchmark.SelectionChanged(); Benchmark.RefreshDiagnosticContext(); Benchmark.SetSuggestedTarget(value); Changed(); Changed(nameof(SelectedDisk)); Changed(nameof(ActiveTab)); }
+        set { selectedOther = value; Benchmark.SelectionChanged(); Benchmark.RefreshDiagnosticContext(); Benchmark.SetSuggestedTarget(value); Changed(); Changed(nameof(SelectedDisk)); Changed(nameof(ActiveTab)); }
     }
     public StorageDevice? BenchmarkDevice => SelectedOther ?? (ActiveTab == 0 ? SelectedSata : SelectedNvme);
     public SataViewModel Sata { get; } = new();
@@ -74,7 +72,6 @@ public sealed class ShellViewModel : ObservableObject
     public IReadOnlyList<StorageDevice> SataDevices => selection.Devices.Where(d => d.Protocol == StorageProtocol.Sata).ToArray();
     public IReadOnlyList<StorageDevice> NvmeDevices => selection.Devices.Where(d => d.Protocol == StorageProtocol.Nvme).ToArray();
     public IReadOnlyList<StorageDevice> OtherDevices => selection.Devices.Where(d => d.Protocol == StorageProtocol.Unknown).ToArray();
-    public string OtherSummary => $"Additional Devices · {OtherDevices.Count}";
     public IReadOnlyList<StorageDevice> AllDevices => selection.Devices;
     public StorageDevice? SelectedDisk
     {
@@ -84,7 +81,7 @@ public sealed class ShellViewModel : ObservableObject
             if (value is null || applying) return;
             if (value.Protocol == StorageProtocol.Nvme) { ActiveTab = 1; SelectedNvme = value; WorkspaceIndex = 0; }
             else if (value.Protocol == StorageProtocol.Sata) { ActiveTab = 0; SelectedSata = value; WorkspaceIndex = 0; }
-            else { SelectedOther = value; WorkspaceIndex = 2; Changed(nameof(ActiveTab)); }
+            else { SelectedOther = value; WorkspaceIndex = 0; Changed(nameof(ActiveTab)); }
             Changed();
         }
     }
@@ -99,12 +96,12 @@ public sealed class ShellViewModel : ObservableObject
     public StorageDevice? SelectedSata
     {
         get => SataDevices.FirstOrDefault(d => d.Id == selection.SataId);
-        set { if (selectedOther is not null) { SelectedOther = null; } if (applying || value?.Id == selection.SataId) return; Benchmark.SelectionChanged(); CancelSata(); sataGeneration++; selection.SelectDevice(StorageProtocol.Sata, value?.Id); Sata.SetDevice(value); Sata.SetStale(IsStale); Benchmark.RefreshDiagnosticContext(); Benchmark.SetSuggestedTarget(value); Changed(); Changed(nameof(SelectedDisk)); ReadSataCommand.Refresh(); ReadNvmeCommand.Refresh(); }
+        set { if (selectedOther is not null) { SelectedOther = null; } if (applying || value?.Id == selection.SataId) return; Benchmark.SelectionChanged(); CancelSata(); sataGeneration++; selection.SelectDevice(StorageProtocol.Sata, value?.Id); Sata.SetDevice(value); Sata.SetStale(IsStale); SataOperationStatus = "Not queried · Select a SATA drive to read diagnostics"; Changed(nameof(SataOperationStatus)); Benchmark.RefreshDiagnosticContext(); Benchmark.SetSuggestedTarget(value); Changed(); Changed(nameof(SelectedDisk)); ReadSataCommand.Refresh(); ReadNvmeCommand.Refresh(); }
     }
     public StorageDevice? SelectedNvme
     {
         get => NvmeDevices.FirstOrDefault(d => d.Id == selection.NvmeId);
-        set { if (selectedOther is not null) { SelectedOther = null; } if (applying || value?.Id == selection.NvmeId) return; Benchmark.SelectionChanged(); CancelNvme(); nvmeGeneration++; selection.SelectDevice(StorageProtocol.Nvme, value?.Id); Nvme.SetDevice(value); Nvme.SetStale(IsStale); Benchmark.RefreshDiagnosticContext(); Benchmark.SetSuggestedTarget(value); Changed(); Changed(nameof(SelectedDisk)); ReadNvmeCommand.Refresh(); }
+        set { if (selectedOther is not null) { SelectedOther = null; } if (applying || value?.Id == selection.NvmeId) return; Benchmark.SelectionChanged(); CancelNvme(); nvmeGeneration++; selection.SelectDevice(StorageProtocol.Nvme, value?.Id); Nvme.SetDevice(value); Nvme.SetStale(IsStale); NvmeOperationStatus = "Not queried · Select an NVMe drive to read diagnostics"; Changed(nameof(NvmeOperationStatus)); Benchmark.RefreshDiagnosticContext(); Benchmark.SetSuggestedTarget(value); Changed(); Changed(nameof(SelectedDisk)); ReadSataCommand.Refresh(); ReadNvmeCommand.Refresh(); }
     }
 
     public ShellViewModel(DiscoveryCoordinator discovery, SataOperationCoordinator? sataCoordinator = null, NvmeOperationCoordinator? nvmeCoordinator = null, FileBenchmarkEngine? benchmarkEngine = null, IWriteConsent? writeConsent = null, StorageOperationGate? operationGate = null)
@@ -147,16 +144,14 @@ public sealed class ShellViewModel : ObservableObject
                 selection.Apply(devices, revision);
                 // Clear old readings even for a retained identity after a new discovery.
                 Sata.SetDevice(SelectedSata); Nvme.SetDevice(SelectedNvme);
-                selectedOther = AllDevices.FirstOrDefault(d => d.Id == selectedOther?.Id); Other.SetDevice(selectedOther); Changed(nameof(SelectedOther));
+                selectedOther = AllDevices.FirstOrDefault(d => d.Id == selectedOther?.Id); Changed(nameof(SelectedOther));
                 Benchmark.SetSuggestedTarget(ActiveTab == 0 ? SelectedSata : SelectedNvme);
                 MarkStale(false);
-                OtherExpanded = OtherDevices.Count > 0;
-                Changed(nameof(OtherExpanded));
-                foreach (var name in new[] { nameof(AllDevices), nameof(SelectedDisk), nameof(SataDevices), nameof(NvmeDevices), nameof(OtherDevices), nameof(SelectedSata), nameof(SelectedNvme), nameof(ActiveTab), nameof(SataEmpty), nameof(NvmeEmpty), nameof(OtherSummary), nameof(DeviceSummary) }) Changed(name);
+                foreach (var name in new[] { nameof(AllDevices), nameof(SelectedDisk), nameof(SataDevices), nameof(NvmeDevices), nameof(OtherDevices), nameof(SelectedSata), nameof(SelectedNvme), nameof(ActiveTab), nameof(SataEmpty), nameof(NvmeEmpty), nameof(DeviceSummary) }) Changed(name);
             }
             finally { applying = false; }
             SetState(ScanState.Completed, devices.Count == 0 ? "Discovery complete · No disks found" :
-                SataEmpty && NvmeEmpty ? $"{devices.Count} disks found · See Unidentified devices in Diagnostics" : $"Discovery complete · {devices.Count} disks · {NvmeDevices.Count} NVMe + {SataDevices.Count} SATA · Diagnostics not yet queried");
+                SataEmpty && NvmeEmpty ? $"{devices.Count} disks found · SATA/NVMe protocol not established for diagnostics" : $"Discovery complete · {devices.Count} disks · {NvmeDevices.Count} NVMe + {SataDevices.Count} SATA · Diagnostics not yet queried");
         }
         catch (OperationCanceledException) { MarkStale(selection.Devices.Count > 0); SetState(ScanState.Cancelled, "Discovery cancelled · Previous device list retained as stale"); }
         catch (Exception ex) { MarkStale(selection.Devices.Count > 0); SetState(ScanState.Failed, $"Discovery failed · Previous list retained · {ex.Message}"); }
@@ -209,7 +204,9 @@ public sealed class ShellViewModel : ObservableObject
     public async Task ReadSataAsync(bool capture = false)
     {
         if (capture ? !CanReadProtocol(false) : !ReadSataCommand.CanExecute(null)) return;
-        var device = SelectedSata!;
+        var device = SelectedSata;
+        var coordinator = sataCoordinator;
+        if (device is null || coordinator is null) { SetSataStatus("Select a SATA-classified drive before reading diagnostics"); return; }
         long operation = ++sataGeneration;
         using var source = new CancellationTokenSource();
         sataCancellation = source;
@@ -220,7 +217,7 @@ public sealed class ShellViewModel : ObservableObject
         });
         try
         {
-            var result = await sataCoordinator!.ReadAsync(device, source.Token, progress);
+            var result = await coordinator.ReadAsync(device, source.Token, progress);
             source.Token.ThrowIfCancellationRequested();
             if (!closed && operation == sataGeneration && SelectedSata?.Id == device.Id)
             { Sata.Apply(result); SetSataStatus(result.Summary); }
@@ -241,7 +238,9 @@ public sealed class ShellViewModel : ObservableObject
     public async Task ReadNvmeAsync(bool capture = false)
     {
         if (capture ? !CanReadProtocol(true) : !ReadNvmeCommand.CanExecute(null)) return;
-        var device = SelectedNvme!;
+        var device = SelectedNvme;
+        var coordinator = nvmeCoordinator;
+        if (device is null || coordinator is null) { SetNvmeStatus("Select an NVMe-classified drive before reading diagnostics"); return; }
         long operation = ++nvmeGeneration;
         using var source = new CancellationTokenSource();
         nvmeCancellation = source;
@@ -252,7 +251,7 @@ public sealed class ShellViewModel : ObservableObject
         });
         try
         {
-            var result = await nvmeCoordinator!.ReadAsync(device, source.Token, progress);
+            var result = await coordinator.ReadAsync(device, source.Token, progress);
             source.Token.ThrowIfCancellationRequested();
             if (!closed && operation == nvmeGeneration && SelectedNvme?.Id == device.Id)
             { Nvme.Apply(result); SetNvmeStatus(result.Summary); }

@@ -9,7 +9,7 @@ public sealed class SataOperationCoordinator(ISataDiagnosticsProvider provider, 
     public async Task<SataDiagnostics> ReadAsync(StorageDevice device, CancellationToken token, IProgress<string>? progress = null)
     {
         if (!device.CanQuerySata)
-            throw new InvalidOperationException("Only confirmed SATA devices can receive SATA diagnostics.");
+            throw new InvalidOperationException("This selected device has no SATA diagnostic query route.");
         using (gate.Enter())
         {
             var result = await Task.Run(() => provider.ReadAsync(device, token, progress), CancellationToken.None).ConfigureAwait(false);

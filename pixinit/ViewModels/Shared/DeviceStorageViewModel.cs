@@ -68,8 +68,8 @@ public abstract partial class DeviceViewModel
     public virtual IReadOnlyList<InfoRow> EntireSsdInfo => IdentityRows().Concat(Enumerable.Range(0, 8).Select(_ => new InfoRow("", "N/A"))).ToArray();
     protected IEnumerable<InfoRow> IdentityRows(string? model = null, string? firmware = null, string? serial = null) => new InfoRow[]
     {
-        new("Model", model ?? Device?.Model ?? "N/A"), new("Physical capacity", BytesDisplay(Device?.CapacityBytes)),
-        new("Firmware", firmware ?? Device?.Firmware ?? "N/A"), new("Full serial", serial ?? Serial), new("Protocol", ProtocolDisplay), new("Reported bus", Device?.Bus.ToString() ?? "N/A"), new("Media", MediaDisplay), new("Access", AccessDisplay)
+        new("Model", model ?? Device?.WindowsFriendlyName ?? Device?.Model ?? "N/A"), new("Physical capacity", BytesDisplay(Device?.WindowsCapacityBytes ?? Device?.CapacityBytes)),
+        new("Firmware", firmware ?? Device?.WindowsFirmware ?? Device?.Firmware ?? "N/A"), new("Full serial", serial ?? Device?.WindowsSerial ?? Serial), new("Protocol", ProtocolDisplay), new("Reported bus", Device?.Bus.ToString() ?? "N/A"), new("Media", MediaDisplay), new("Access", AccessDisplay)
     };
     protected static string FirstPageValue(string value) => value is "Unavailable" or "Not queried" ? "N/A" : value;
 }
