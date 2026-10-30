@@ -1,82 +1,107 @@
-# Visual Studio
-.vs/
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# Build artifacts
-**/bin/
-**/obj/
+# Generated build, publish and release outputs
+[Bb]in/
+[Oo]bj/
+node_modules/
+dist/
 out/
-
-# Publish outputs
+release/
+artifacts/
 publish/
-artifacts/publish/
-artifacts/installer-test/
+[Bb]uild/
+installer/
+
+# Required release source files are not generated outputs.
+!/build/
+/build/*
+!/build/*.ps1
+!/installer/
+/installer/*
+!/installer/*.iss
+
+# Generated executables, native libraries, symbols and packages.
+# No checked-in binary dependency is required by the current WPF projects.
+*.exe
+*.msi
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.dll
+*.pyd
+*.pdb
+*.nupkg
+*.snupkg
+*.zip
+*.7z
+*.tar
+*.gz
 *.Publish.xml
 *.publishsettings
-
-# NuGet
-*.nupkg
 packages/
-.nuget/
+# Keep NuGet.Config, .nuget configuration and all package lock files eligible.
 
-# Visual Studio Code
-.vscode/
+# Local environment/secrets; example templates are safe to track.
+.env
+.env.*
+!.env.example
+!.env.*.example
+secrets.json
 
-# Rider
-.idea/
-
-# ReSharper
-_ReSharper*/
-*.DotSettings.user
-
-# Test results
+# Generated logs, caches and test results
+*.log
+.cache/
+.vite/
+coverage/
 TestResults/
 *.trx
 *.coverage
 coverage.opencover.xml
+__pycache__/
+*.py[cod]
+*.egg-info/
 
-# SQLite and local DBs
+# Local IDE state
+.vs/
+.vscode/
+.idea/
+_ReSharper*/
+*.DotSettings.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.history/
+.vsdbg*/
+
+# Runtime databases; source migrations and schema files stay eligible.
 *.db
 *.sqlite
 *.sqlite3
 *.db-journal
+*.db-wal
+*.db-shm
 
-# Logs
-*.log
-
-# User secrets (sometimes checked in by mistake)
-secrets.json
-
-# OS generated files
+# OS metadata and temporary files
 .DS_Store
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-
-# Temporary files
 *.tmp
 *.temp
+*.bak
+*.swp
+*.swo
+*~
 ~$*
 
-# Visual Studio Code workspace storage
-.history/
-
-# Ignore Visual Studio debug source copies (if accidentally added)
-.vsdbg*/
-
-# Ignore JetBrains Rider caches
-.idea/
-
-# Ignore node modules if present
-node_modules/
-
-# Ignore generated package lock files (optional)
-package-lock.json
-
-# End of .gitignore
-
-# Isolated build used while the normal application is running
-artifacts/diagnostics-build/
+# Generated historical verification output and machine-specific telemetry.
+# Keep written validation documents, observations and documentation screenshots.
+/docs/verification-output.txt
+/docs/phase-*-baseline-output.txt
+/docs/phase-*-behavior-output.txt
+/docs/phase-*-hardware-output.txt
+/docs/phase-*-verification-output.txt
+/docs/phase-5-intel-nvme.json
+/docs/phase-5-intel-nvme.txt
+/docs/phase-6-intel-nvme-benchmark.json
+/docs/phase-6-intel-nvme-benchmark.txt
