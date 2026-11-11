@@ -1,0 +1,10 @@
+---
+description: PIXINIT session rules. Read the short context files, not the repo.
+alwaysApply: true
+---
+
+Read only `.cursor/context.md`, `.cursor/disks.md`, and `.cursor/tasks.md` before editing.
+Do not read the rest of the repo. Open a source file only when `tasks.md` names it.
+Edit only the files listed in `tasks.md`.
+Do not invent SMART values. Live reads must use the formulas in `disks.md`.
+After the edit, run the Release build and the harness. Reply with the diff and the test result only.
