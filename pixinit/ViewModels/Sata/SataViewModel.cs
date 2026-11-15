@@ -5,7 +5,6 @@ namespace pixinit.ViewModels.Sata;
 
 public sealed class SataViewModel : DeviceViewModel
 {
-    private const string NvmeOnlyField = "N/A - NVMe field; SATA SMART status shown below";
     private SataDiagnostics? result;
     private SataSmartAttribute? selectedAttribute;
     public string SmartStatus => result?.SmartPassed.Availability == Core.Diagnostics.Common.Availability.Available
@@ -21,16 +20,15 @@ public sealed class SataViewModel : DeviceViewModel
     public string CommandDetails => result is null ? "Not queried" : string.Join("\n\n", result.Commands.Select(c =>
         $"{c.Operation} · {c.Outcome} · {c.ObservedAt:O}\n{c.Explanation}\nReturned task file: {Convert.ToHexString(c.Registers)}\nPayload ({c.Payload.Length} bytes):\n{Hex(c.Payload)}"));
     private static string Hex(byte[] bytes) => string.Join("\n", Enumerable.Range(0, (bytes.Length + 15) / 16).Select(i => $"{i * 16:X3}: {Convert.ToHexString(bytes.AsSpan(i * 16, Math.Min(16, bytes.Length - i * 16)))}"));
-    public string Temperature => Format(result?.Temperature) + (result?.Thermal is { ObservedC: not null, InterpretationVerified: false }
-        ? Device?.Bus == Core.Devices.ConnectionBus.Raid ? " (SMART 194 via RAID fallback - unverified units)" : " (unverified SMART encoding)" : "");
-    public string HostReads => result?.HostReadsTB is double reads
-        ? $"{reads:F3} TB (SMART 242 assumed 512-byte LBAs; unverified units)"
-        : RaidUnavailable("Host reads");
-    public string HostWrites => result?.Tbw?.WrittenTB is double writes
-        ? $"{writes:F3} TB (SMART 241, unverified units)"
-        : result?.UsageUsedPercent is > 10
-            ? $"Unavailable - RAID/controller blocks SMART 241 passthrough - drive {result.UsageUsedPercent:F1}% used but SMART not accessible (Serial {Device?.Serial ?? "unavailable"})"
-            : RaidUnavailable("Host writes");
+    public string Temperature => result is null ? "Unavailable" : result.Temperature.Availability == Core.Diagnostics.Common.Availability.Available
+        ? Format(result.Temperature) + (result.Thermal is { ObservedC: not null, InterpretationVerified: false }
+            ? Device?.Bus == Core.Devices.ConnectionBus.Raid ? " (SMART 194 via RAID fallback - unverified units)" : " (unverified SMART encoding)" : "")
+        : MissingReason("Temp");
+    public string HostReads => result is null ? "Unavailable" : result.HostReadsTB is not null ? FormatHostTotal(result.HostReadsTB) : MissingReason("Host reads");
+    public string HostWrites => result is null ? "Unavailable" : result.Tbw?.WrittenTB is not null ? FormatHostTotal(result.Tbw.WrittenTB) : MissingReason("Host writes");
+    private static string FormatHostTotal(double? tb) => tb is double value
+        ? $"{value * 1e12 / 1073741824d:N2} GiB / {value * 1000:N2} GB"
+        : "Unavailable - SMART counter layout not supported or counter not reported";
     public string Wear => Format(result?.Wear);
     public IReadOnlyList<SataSmartAttribute> Attributes => result?.Attributes ?? [];
     public SataSmartAttribute? SelectedAttribute { get => selectedAttribute; set { selectedAttribute = value; Changed(); Changed(nameof(AttributeDetail)); } }
@@ -66,18 +64,70 @@ public sealed class SataViewModel : DeviceViewModel
             }.Where(x => x is not null)) + " available";
         }
     }
-    private string RaidUnavailable(string field) => Device?.Bus == Core.Devices.ConnectionBus.Raid
-        ? $"N/A - RAID controller blocks SMART passthrough - limited data from Windows Storage API ({FallbackIdentitySummary})"
-        : "N/A - no verified interpretation";
+    private string MissingReason(string field)
+    {
+        string chip = string.IsNullOrWhiteSpace(Device?.BridgeChip) ? "USB" : Device.BridgeChip;
+        bool denied = result?.Commands.Any(c => c.Outcome == AtaOutcome.AccessDenied) == true || Device?.Access == Core.Devices.DeviceAccess.AccessDenied;
+        if (denied)
+            return $"{field} N/A - Access denied - Run PIXINIT as administrator";
+        if (Device?.Bus == Core.Devices.ConnectionBus.Usb)
+            return chip.Contains("JMicron", StringComparison.OrdinalIgnoreCase)
+                ? $"{field} N/A - {chip} UAS bridge rejects SAT and vendor 0xDF (sense 05/24) - Try a USBSTOR port or direct SATA"
+                : $"{field} N/A - {chip} bridge blocks SAT - Try direct SATA port";
+        if (Device?.Bus == Core.Devices.ConnectionBus.Raid)
+            return "Unavailable - RAID hides SMART - Change BIOS to AHCI";
+        if (field.Contains("Host", StringComparison.Ordinal))
+            return $"{field} N/A - Unavailable - SMART counter layout not supported or counter not reported. {result?.Tbw?.Source}";
+        return $"{field} N/A - no verified interpretation - rescan as administrator";
+    }
+    public override string HealthLine
+    {
+        get
+        {
+            if (result is null) return "";
+            int? life = RemainLifeCurrent(result);
+            if (life is null)
+                return Device?.Bus == Core.Devices.ConnectionBus.Raid
+                    ? "Unavailable - RAID hides SMART - Change BIOS to AHCI"
+                    : "Unavailable - Remain-life attribute was not reported - Rescan as administrator";
+            return $"Good {life.Value}%";
+        }
+    }
+    private static int? RemainLifeCurrent(SataDiagnostics value)
+    {
+        foreach (byte id in new byte[] { 0xA9, 0xE8, 177, 231, 202 })
+        {
+            int? current = value.Attributes.FirstOrDefault(a => a.Id == id)?.Current;
+            if (current is >= 0 and <= 100) return current;
+        }
+        return null;
+    }
+    public override string StandardLine => result?.Identity?.AtaVersions is { Length: > 0 } versions && versions != "Not reported" ? versions : "";
+    public override string FeaturesLine
+    {
+        get
+        {
+            var identity = result?.Identity;
+            if (identity is null) return "";
+            var features = new List<string>();
+            if (identity.SmartSupported == true) features.Add("S.M.A.R.T.");
+            if (identity.NcqSupported == true) features.Add("NCQ");
+            if (identity.TrimSupported == true) features.Add("TRIM");
+            if (identity.DevSleepSupported == true) features.Add("DevSleep");
+            if (identity.GplSupported == true) features.Add("GPL");
+            return features.Count == 0 ? "" : "Features " + string.Join(", ", features);
+        }
+    }
+    public override string SmartTable => result is null || Attributes.Count == 0 ? "" :
+        "ID Cur Wor Thr Raw\n" + string.Join("\n", Attributes.OrderBy(a => a.Id).Select(a => $"{a.Id:X2} {a.Current?.ToString() ?? "-",3} {a.Worst?.ToString() ?? "-",3} {a.Threshold?.ToString() ?? "-",3} {a.RawValue}"));
     public override IReadOnlyList<InfoRow> EntireSsdInfo => IdentityRows(result?.Identity?.Model, result?.Identity?.Firmware, result?.Identity?.Serial).Concat(new InfoRow[]
     {
-        new("Power-on hours", result?.PowerOnHours is double hours ? $"{hours:N0} hours (SMART 9, unverified units)" : RaidUnavailable("Power-on hours"), result?.PowerOnHours is null), new("Power cycles", result?.PowerCycles is ulong cycles ? $"{cycles:N0} cycles (SMART 12, unverified units)" : RaidUnavailable("Power cycles"), result?.PowerCycles is null),
-        new("Host writes", HostWrites, result?.Tbw?.WrittenTB is null), new("Host reads", HostReads, result?.HostReadsTB is null),
-        new("Observed temperature", FirstPageValue(Temperature), result?.Thermal?.ObservedC is null),
-        new("Available spare", NvmeOnlyField), new("Percentage Used (consumed)", NvmeOnlyField), new("Critical warning", NvmeOnlyField)
+        new("Power-on hours", result?.PowerOnHours is double hours ? $"{hours:N0} hours (SMART 9, unverified units)" : MissingReason("Power-on"), result?.PowerOnHours is null), new("Power cycles", result?.PowerCycles is ulong cycles ? $"{cycles:N0} cycles (SMART 12, unverified units)" : MissingReason("Power cycles"), result?.PowerCycles is null),
+        new("Observed temperature", Temperature, result?.Thermal?.ObservedC is null),
+        new("Host writes", HostWrites, result?.Tbw?.WrittenTB is null), new("Host reads", HostReads, result?.HostReadsTB is null)
     }).ToArray();
     private void NotifyResults()
     {
-        foreach (var name in new[] { nameof(FirstPageWarnings), nameof(EntireSsdInfo), nameof(HostWrites), nameof(HostReads), nameof(LimitedDataSummary), nameof(LimitedSmartFallback), nameof(Result), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(SmartStatus), nameof(Temperature), nameof(Wear), nameof(Attributes), nameof(Endurance), nameof(Ata), nameof(Interface), nameof(HasNoAttributes), nameof(SmartExplanation), nameof(Discrepancies), nameof(CommandDetails) }) Changed(name);
+        foreach (var name in new[] { nameof(FirstPageWarnings), nameof(EntireSsdInfo), nameof(HostWrites), nameof(HostReads), nameof(LimitedDataSummary), nameof(LimitedSmartFallback), nameof(Result), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(SmartStatus), nameof(Temperature), nameof(Wear), nameof(Attributes), nameof(Endurance), nameof(Ata), nameof(Interface), nameof(HasNoAttributes), nameof(SmartExplanation), nameof(Discrepancies), nameof(CommandDetails), nameof(HealthLine), nameof(StandardLine), nameof(FeaturesLine), nameof(SmartTable), nameof(CrystalSummary) }) Changed(name);
     }
 }

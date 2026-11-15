@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using pixinit.Core.Devices;
 using pixinit.Core.Diagnostics.Nvme;
+using pixinit.Infrastructure.Logging;
 using pixinit.Infrastructure.Windows.Discovery;
 using pixinit.Infrastructure.Windows.Interop;
 
@@ -16,16 +17,26 @@ internal static class NvmeQueryPolicy
     internal static byte[] Request(NvmeOperation op, uint ns = 0, bool raid = false)
     {
         if ((op == NvmeOperation.Namespace && ns is 0 or uint.MaxValue) || (op != NvmeOperation.Namespace && ns != 0)) throw new InvalidDataException("Invalid query namespace scope.");
+        return Request(op, ns, raid, false);
+    }
+    internal static byte[] Request(NvmeOperation op, uint ns, bool raid, bool alternateProperty)
+    {
+        if ((op == NvmeOperation.Namespace && ns is 0 or uint.MaxValue) || (op != NvmeOperation.Namespace && ns != 0)) throw new InvalidDataException("Invalid query namespace scope.");
         var b = new byte[48 + Length(op)];
         void W(int o, uint v) => BinaryPrimitives.WriteUInt32LittleEndian(b.AsSpan(o), v);
-        W(0, raid || op is NvmeOperation.Namespace or NvmeOperation.Health ? 50U : 49U); // device vs adapter protocol property
+        uint property = raid || op is NvmeOperation.Namespace or NvmeOperation.Health ? 50U : 49U;
+        if (alternateProperty) property = property == 50U ? 49U : 50U;
+        W(0, property); // 49 adapter property, 50 device property. Both are read-only protocol queries.
         W(8, 3); W(12, op is NvmeOperation.Controller or NvmeOperation.Namespace ? 1U : 2U);
         W(16, op switch { NvmeOperation.Controller => 1, NvmeOperation.Namespace => 0, NvmeOperation.Health => 2, _ => 1 });
         W(20, ns); W(24, 40); W(28, (uint)Length(op));
         return b;
     }
     internal static void ValidateRequest(NvmeOperation op, byte[] b, uint ns = 0, bool raid = false)
-    { if (!Request(op, ns, raid).AsSpan().SequenceEqual(b)) throw new InvalidDataException("NVMe read-query allowlist violation."); }
+    {
+        if (!Request(op, ns, raid).AsSpan().SequenceEqual(b) && !Request(op, ns, raid, true).AsSpan().SequenceEqual(b))
+            throw new InvalidDataException("NVMe read-query allowlist violation.");
+    }
     internal static NvmeOutcome Error(int e) => e switch { 5 => NvmeOutcome.AccessDenied, 1 or 50 => NvmeOutcome.Unsupported, 2 or 21 or 1167 => NvmeOutcome.Disconnected, _ => NvmeOutcome.Failed };
     internal static string Scope(NvmeOperation op, uint ns = 0) => op switch
     {
@@ -56,6 +67,8 @@ internal static class NvmeIdentityGuard
     {
         if (a.Bus != b.Bus || a.NativeBusType != b.NativeBusType || !string.Equals(a.InterfacePath, b.InterfacePath, StringComparison.OrdinalIgnoreCase) ||
             (a.DiskNumber is not null && a.DiskNumber != b.DiskNumber) || (a.CapacityBytes is not null && a.CapacityBytes != b.CapacityBytes)) return false;
+        if (a.UsbNvmeAdmin)
+            return true;
         if (a.ProtocolHeuristic) return true;
         return b.CanQueryNvme && !string.IsNullOrWhiteSpace(b.Model) && a.Model.Trim() == b.Model.Trim() &&
             (string.IsNullOrWhiteSpace(a.Serial) || a.Serial.Trim() == b.Serial?.Trim()) && (a.Firmware is null || a.Firmware == b.Firmware);
@@ -65,6 +78,19 @@ internal sealed class WindowsNvmeTransport : INvmeTransport
 {
     private static long dispatchCount;
     internal static long DispatchCount => Interlocked.Read(ref dispatchCount);
+    private static SafeFileHandle Open(StorageDevice device)
+    {
+        if (!device.UsbNvmeAdmin) return StorageNative.CreateFileW(device.InterfacePath!, 0, 3, IntPtr.Zero, 3, 0, IntPtr.Zero);
+        SafeFileHandle? last = null;
+        foreach (uint access in new uint[] { 0xC0000000, 0x80000000, 0 })
+        {
+            var handle = StorageNative.CreateFileW(device.InterfacePath!, access, 3, IntPtr.Zero, 3, 0, IntPtr.Zero);
+            if (!handle.IsInvalid) { last?.Dispose(); return handle; }
+            last?.Dispose();
+            last = handle;
+        }
+        return last ?? StorageNative.CreateFileW(device.InterfacePath!, 0, 3, IntPtr.Zero, 3, 0, IntPtr.Zero);
+    }
     public NvmeResponse Query(StorageDevice device, NvmeOperation op, CancellationToken token, uint namespaceId = 0)
     {
         NvmeIdentityGuard.Require(device);
@@ -75,7 +101,7 @@ internal sealed class WindowsNvmeTransport : INvmeTransport
         var current = WindowsDiskDiscovery.ReadDevice(device.InterfacePath!, device.InstanceId, token);
         if (current.Access == DeviceAccess.AccessDenied) return Fail(NvmeOutcome.AccessDenied, "Identity revalidation denied.");
         if (!NvmeIdentityGuard.Matches(device, current)) return Fail(NvmeOutcome.IdentityMismatch, "Identity changed or unavailable; rescan. No protocol query dispatched.");
-        using SafeFileHandle handle = StorageNative.CreateFileW(device.InterfacePath!, 0, 3, IntPtr.Zero, 3, 0, IntPtr.Zero);
+        using SafeFileHandle handle = Open(device);
         if (handle.IsInvalid) { int e = Marshal.GetLastWin32Error(); return Fail(NvmeQueryPolicy.Error(e), $"Open failed, Windows error {e}; no automatic elevation."); }
         byte[] QueryMetadata(uint code, byte[]? input, int length)
         {
@@ -88,12 +114,72 @@ internal sealed class WindowsNvmeTransport : INvmeTransport
         }
         current = WindowsDiskDiscovery.ReadDevice(device.InterfacePath!, device.InstanceId, token, QueryMetadata);
         if (!NvmeIdentityGuard.Matches(device, current)) return Fail(NvmeOutcome.IdentityMismatch, "Same-handle identity revalidation failed; no query dispatched.");
-        token.ThrowIfCancellationRequested();
-        var result = new byte[request.Length];
-        Interlocked.Increment(ref dispatchCount);
-        bool ok = StorageNative.DeviceIoControl(handle, StorageNative.QueryProperty, request, (uint)request.Length, result, (uint)result.Length, out uint returned, IntPtr.Zero);
-        int error = ok ? 0 : Marshal.GetLastWin32Error();
-        var response = NvmeQueryPolicy.Validate(op, result, returned, ok, error, namespaceId);
+        if (device.UsbNvmeAdmin)
+        {
+            if (op is NvmeOperation.Errors or NvmeOperation.Namespace)
+                return Fail(NvmeOutcome.Unsupported, "USB NVMe admin pass-through reads Identify Controller and SMART/Health. SAT was not sent.");
+            byte[]? payload = op == NvmeOperation.Controller ? JmicronNvmeAdmin.ReadIdentify(handle) : op == NvmeOperation.Health ? JmicronNvmeAdmin.ReadHealth(handle) : null;
+            string source = "NVMe Admin pass-through via SCSI/UASP";
+            if (payload is null && JmicronNvmeAdmin.LastError == 5) return new NvmeResponse(op, NvmeOutcome.AccessDenied, "NVMe admin pass-through needs administrator. SAT was not sent.", [], DateTimeOffset.UtcNow, NvmeQueryPolicy.Scope(op), NativeError: 5) { Source = source };
+            if (payload is null) return new NvmeResponse(op, NvmeOutcome.Failed, "NVMe admin pass-through via SCSI/UASP returned no payload. SAT was not sent.", [], DateTimeOffset.UtcNow, NvmeQueryPolicy.Scope(op)) { Source = source };
+            return new NvmeResponse(op, NvmeOutcome.Success, "NVMe admin pass-through via SCSI/UASP.", payload, DateTimeOffset.UtcNow,
+                op == NvmeOperation.Controller ? "Controller-wide UASP admin identify" : "SMART/Health log 02h via UASP admin pass-through") { Source = source };
+        }
+        NvmeResponse Send(byte[] query, bool headerOnly)
+        {
+            NvmeQueryPolicy.ValidateRequest(op, query, namespaceId, device.RaidProtocolVerified);
+            token.ThrowIfCancellationRequested();
+            var result = new byte[query.Length];
+            uint input = headerOnly ? 48u : (uint)query.Length;
+            Interlocked.Increment(ref dispatchCount);
+            bool ok = StorageNative.DeviceIoControl(handle, StorageNative.QueryProperty, query, input, result, (uint)result.Length, out uint returned, IntPtr.Zero);
+            int error = ok ? 0 : Marshal.GetLastWin32Error();
+            var response = NvmeQueryPolicy.Validate(op, result, returned, ok, error, namespaceId);
+            string property = query[0] == 50 ? "device property 50" : "adapter property 49";
+            return response with { Explanation = $"{response.Explanation} ({property}, input {(headerOnly ? "header" : "full")})" };
+        }
+        var attempts = new List<NvmeResponse> { Send(request, false) };
+        if (!attempts[0].Succeeded && attempts[0].Outcome is not (NvmeOutcome.AccessDenied or NvmeOutcome.IdentityMismatch))
+        {
+            attempts.Add(Send(request, true));
+            if (!attempts[^1].Succeeded)
+            {
+                var alternate = NvmeQueryPolicy.Request(op, namespaceId, device.RaidProtocolVerified, true);
+                attempts.Add(Send(alternate, false));
+                if (!attempts[^1].Succeeded) attempts.Add(Send(alternate, true));
+            }
+        }
+        var response = attempts.FirstOrDefault(item => item.Succeeded) ?? attempts[0];
+        if (!response.Succeeded && attempts.Count > 1)
+            response = response with { Explanation = string.Join(" | ", attempts.Select(item => item.Explanation)) };
         return device.RaidProtocolVerified ? response with { Scope = "Selected RAID-presented disk through device protocol property; RAID driver controller/namespace scope is not independently established" } : response;
+    }
+}
+
+internal static class NvmeControllerIdentity
+{
+    internal static StorageDevice Apply(StorageDevice device, Func<uint, byte[]?, int, byte[]> query)
+    {
+        if (device.Bus != ConnectionBus.Nvme || device.Protocol != StorageProtocol.Nvme) return device;
+        try
+        {
+            var request = NvmeQueryPolicy.Request(NvmeOperation.Controller);
+            var raw = query(StorageNative.QueryProperty, request, request.Length);
+            var response = NvmeQueryPolicy.Validate(NvmeOperation.Controller, raw, (uint)raw.Length, true, 0);
+            if (!response.Succeeded || response.Payload.Length != 4096) return device;
+            var controller = NvmeControllerParser.Parse(response.Payload);
+            if (string.IsNullOrWhiteSpace(controller.Serial)) return device;
+            DiscoveryLog.Write($"NVMe Identify serial preferred: disk={device.DiskNumber}; ending={controller.Serial.Trim()[^Math.Min(4, controller.Serial.Trim().Length)..]}.");
+            return device with
+            {
+                Serial = controller.Serial.Trim(),
+                Firmware = string.IsNullOrWhiteSpace(controller.Firmware) ? device.Firmware : controller.Firmware.Trim()
+            };
+        }
+        catch (Exception ex)
+        {
+            DiscoveryLog.Write("NVMe Identify serial was not applied", ex);
+            return device;
+        }
     }
 }

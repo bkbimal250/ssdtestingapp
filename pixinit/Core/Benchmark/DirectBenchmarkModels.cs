@@ -1,14 +1,21 @@
 namespace pixinit.Core.Benchmark;
 
 [Flags]
-public enum BenchmarkProfiles { None = 0, Seq1MQ8T1 = 1, Seq1MQ1T1 = 2, Rnd4KQ32T16 = 4, Rnd4KQ1T1 = 8, All = 15 }
+public enum BenchmarkProfiles { None = 0, Seq1MQ8T1 = 1, Seq1MQ1T1 = 2, Rnd4KQ32T16 = 4, Rnd4KQ1T1 = 8, Rnd4KQ32T1 = 16, Seq128KQ32T1 = 32, All = 15, Standard = 27, Nvme = 45 }
 public sealed record BenchmarkProfile(BenchmarkProfiles Id, string Name, int BlockBytes, int QueuePerWorker, int Workers, bool Random)
 {
     public static IReadOnlyList<BenchmarkProfile> All { get; } = [
         new(BenchmarkProfiles.Seq1MQ8T1, "SEQ1M Q8T1", 1048576, 8, 1, false),
         new(BenchmarkProfiles.Seq1MQ1T1, "SEQ1M Q1T1", 1048576, 1, 1, false),
         new(BenchmarkProfiles.Rnd4KQ32T16, "RND4K Q32T16", 4096, 32, 16, true),
-        new(BenchmarkProfiles.Rnd4KQ1T1, "RND4K Q1T1", 4096, 1, 1, true)];
+        new(BenchmarkProfiles.Rnd4KQ1T1, "RND4K Q1T1", 4096, 1, 1, true),
+        new(BenchmarkProfiles.Rnd4KQ32T1, "RND4K Q32T1", 4096, 32, 1, true),
+        new(BenchmarkProfiles.Seq128KQ32T1, "SEQ128K Q32T1", 131072, 32, 1, false)];
+    public static IReadOnlyList<BenchmarkProfile> ForDevice(bool nvme) =>
+        (nvme
+            ? new[] { BenchmarkProfiles.Seq1MQ8T1, BenchmarkProfiles.Seq128KQ32T1, BenchmarkProfiles.Rnd4KQ32T16, BenchmarkProfiles.Rnd4KQ1T1 }
+            : new[] { BenchmarkProfiles.Seq1MQ8T1, BenchmarkProfiles.Seq1MQ1T1, BenchmarkProfiles.Rnd4KQ32T1, BenchmarkProfiles.Rnd4KQ1T1 })
+        .Select(id => All.Single(profile => profile.Id == id)).ToArray();
 }
 public sealed record BenchmarkPassResult(string Profile, int Pass, int QueuePerWorker, int Workers, BenchmarkOperationResult Measurement)
 {
@@ -22,6 +29,7 @@ public sealed record BenchmarkProfileSummary(string Profile, BenchmarkOperation 
 public static class DirectBenchmarkPolicy
 {
     public const long MaximumApplicationWrites = 96L * 1073741824;
+    public static long RemainingTimedWriteBytes(long writtenBytes) => Math.Max(0, MaximumApplicationWrites - Math.Max(0, writtenBytes));
     public const string Methodology = "Unbuffered filesystem I/O with write-through; OS file-data cache bypass requested; controller cache may remain. Queue depth is per worker. Preparation, allocation and pre-test flush excluded; completions/drain and post-write flush included. No raw sectors or volume locks.";
     public static string Describe(BenchmarkConfiguration c) => Methodology + (c.TimedMode ? $" Timed submission window {c.DurationSeconds}s; circular file reuse; byte ceiling can terminate a write early, excluding it from averages." : " Fixed byte/operation workload.") + " Two-second inter-pass pause is not guaranteed SLC recovery. Comparison methodology differs from CDM timed workload.";
     public static long TimedWriteAllowance(BenchmarkConfiguration c)
@@ -39,7 +47,7 @@ public static class DirectBenchmarkPolicy
         if (!OperatingSystem.IsWindows() || !Environment.Is64BitProcess) throw new InvalidOperationException("Unbuffered benchmarking requires Windows x64.");
         if (c.FileSizeBytes is < 1048576 or > 4294967296 || c.FileSizeBytes % 1048576 != 0) throw new InvalidOperationException("Unbuffered files require 1 MiB alignment, up to 4 GiB. UI sizes are 1, 2 and 4 GiB.");
         if (c.Iterations is not (1 or 3 or 5 or 9) || c.RandomOperationCount is < 1 or > 65536) throw new InvalidOperationException("Select 1, 3, 5 or 9 passes and at most 65536 random operations per pass/profile.");
-        if (c.Profiles == BenchmarkProfiles.None || (c.Profiles & ~BenchmarkProfiles.All) != 0) throw new InvalidOperationException("Select at least one supported queue profile.");
+        if (c.Profiles == BenchmarkProfiles.None || (c.Profiles & ~(BenchmarkProfiles.All | BenchmarkProfiles.Rnd4KQ32T1 | BenchmarkProfiles.Seq128KQ32T1)) != 0) throw new InvalidOperationException("Select at least one supported queue profile.");
         if (c.Operations == BenchmarkOperation.None || (c.Operations & ~(BenchmarkOperation.SequentialRead | BenchmarkOperation.SequentialWrite | BenchmarkOperation.RandomRead | BenchmarkOperation.RandomWrite | BenchmarkOperation.SustainedWrite)) != 0) throw new InvalidOperationException("Select supported benchmark operations.");
         if (!BenchmarkProfile.All.Any(p => (c.Profiles & p.Id) != 0 && (c.Operations & (p.Random ? BenchmarkOperation.RandomRead | BenchmarkOperation.RandomWrite : BenchmarkOperation.SequentialRead | BenchmarkOperation.SequentialWrite)) != 0) && (c.Operations & BenchmarkOperation.SustainedWrite) == 0) throw new InvalidOperationException("Selected profiles contain no enabled operations.");
         if ((c.Operations & BenchmarkOperation.SustainedWrite) != 0 && (c.SustainedDurationSeconds is < 1 or > 30 || c.SustainedMaximumWriteBytes is < 1048576 or > 34359738368 || c.SustainedMaximumWriteBytes % 1048576 != 0)) throw new InvalidOperationException("Sustained testing requires 1-30 seconds and at most 32 GiB aligned application writes.");

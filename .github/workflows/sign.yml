@@ -1,0 +1,37 @@
+name: SignPath
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  sign:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish PIXINIT
+        run: dotnet publish pixinit/pixinit.csproj -c Release -r win-x64 --self-contained true -p:PublishTrimmed=true -o artifacts/unsigned
+      - name: Upload unsigned build
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixinit-unsigned
+          path: artifacts/unsigned/PIXINIT.exe
+      - name: Submit to SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: pixinit
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: pixinit-exe
+          github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: artifacts/signed

@@ -38,10 +38,19 @@ public abstract partial class DeviceViewModel : ObservableObject
         stale = false;
         hasResult = false;
         ClearResults();
-        SetVolumes();
+        UpdateVolumesForSelectedDisk();
         Changed(nameof(LinkDisplay)); Changed(nameof(ProtocolDisplay)); Changed(nameof(MediaDisplay)); Changed(nameof(AccessDisplay)); Changed(nameof(MediaEvidence));
-        Changed(nameof(Model)); Changed(nameof(Serial)); Changed(nameof(Connection)); Changed(nameof(DeviceId)); Changed(nameof(DataStatus)); Changed(nameof(DiscoveryDetails)); Changed(nameof(EntireSsdInfo));
+        Changed(nameof(Model)); Changed(nameof(Serial)); Changed(nameof(Connection)); Changed(nameof(DeviceId)); Changed(nameof(DataStatus)); Changed(nameof(DiscoveryDetails)); Changed(nameof(EntireSsdInfo)); Changed(nameof(CrystalSummary));
     }
+
+    public virtual string HealthLine => "";
+    public virtual string StandardLine => "";
+    public virtual string FeaturesLine => "";
+    public virtual string InterfaceLine => !string.IsNullOrWhiteSpace(Device?.InterfaceLabel) ? Device.InterfaceLabel! : Device?.Bus == Core.Devices.ConnectionBus.Nvme ? "NVM Express" : "";
+    public virtual string SensorsLine => "";
+    public virtual string ControllerLine => Device?.ControllerMap ?? "";
+    public virtual string SmartTable => "";
+    public string CrystalSummary => string.Join("\n", new[] { HealthLine, StandardLine, FeaturesLine, InterfaceLine, SensorsLine, ControllerLine }.Where(line => !string.IsNullOrWhiteSpace(line)));
 
     protected abstract void ClearResults();
     protected void ResultReceived() { NotifyObservedTemperature(); hasResult = true; Changed(nameof(DataStatus)); }

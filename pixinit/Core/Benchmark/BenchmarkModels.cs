@@ -223,6 +223,7 @@ public sealed record BenchmarkSession(Guid Id, DateTimeOffset StartedUtc, DateTi
 public sealed record BenchmarkProgress(string Stage, BenchmarkOperation? Operation, long BytesProcessed, long PlannedBytes, double ElapsedSeconds)
 
 {
+    public BenchmarkPassResult? CompletedPass { get; init; }
 
     public double DurationSeconds { get; init; }
 

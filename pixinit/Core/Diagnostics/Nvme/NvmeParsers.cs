@@ -13,7 +13,10 @@ public sealed record NvmeResponse(NvmeOperation Operation, NvmeOutcome Outcome, 
     public byte[] RawResponse { get; init; } = [];
     public string Source { get; init; } = "IOCTL_STORAGE_QUERY_PROPERTY · ProtocolTypeNvme";
 }
-public sealed record NvmeController(string Model, string Serial, string Firmware, ushort Vendor, ushort SubsystemVendor, ushort Id, uint Version, uint Namespaces, byte LogAttributes, int ErrorSlots, ushort WarningKelvin, ushort CriticalKelvin, bool ThermalManagement);
+public sealed record NvmeController(string Model, string Serial, string Firmware, ushort Vendor, ushort SubsystemVendor, ushort Id, uint Version, uint Namespaces, byte LogAttributes, int ErrorSlots, ushort WarningKelvin, ushort CriticalKelvin, bool ThermalManagement)
+{
+    public string Features { get; init; } = "";
+}
 public sealed record NvmeNamespace(uint Id, ulong Size, ulong Capacity, ulong? Utilization, int Format, uint BlockBytes, ushort MetadataBytes, BigInteger SizeBytes, BigInteger CapacityBytes);
 public sealed record NvmeHealth(byte Warning, double? Celsius, byte? Spare, byte? SpareThreshold, byte Used, IReadOnlyList<BigInteger> Counters, uint WarningMinutes, uint CriticalMinutes, IReadOnlyList<double?> Sensors, IReadOnlyList<uint> ThermalCounters)
 { public IReadOnlyList<ushort> RawSensorKelvin { get; init; } = []; }
@@ -38,8 +41,13 @@ public static class NvmeControllerParser
         var model = NvmeBytes.Text(b, 24, 40);
         if (string.IsNullOrWhiteSpace(model) || NvmeBytes.U16(b, 0) is 0 or 65535) throw new InvalidDataException("Controller identity is invalid.");
         uint version = NvmeBytes.U32(b, 80);
-        return new(model, NvmeBytes.Text(b, 4, 20), NvmeBytes.Text(b, 64, 8), NvmeBytes.U16(b, 0), NvmeBytes.U16(b, 2), NvmeBytes.U16(b, 78), version,
-            NvmeBytes.U32(b, 516), b[261], b[262] + 1, NvmeBytes.U16(b, 266), NvmeBytes.U16(b, 268), version >= 0x10300 && version != uint.MaxValue && (NvmeBytes.U16(b, 322) & 1) != 0);
+        ushort oncs = b.Length >= 522 ? NvmeBytes.U16(b, 520) : (ushort)0;
+        var features = new List<string> { "S.M.A.R.T." };
+        if ((oncs & 0x4) != 0) features.Add("TRIM");
+        if (b.Length > 525 && (b[525] & 1) != 0) features.Add("VolatileWriteCache");
+        return new NvmeController(model, NvmeBytes.Text(b, 4, 20), NvmeBytes.Text(b, 64, 8), NvmeBytes.U16(b, 0), NvmeBytes.U16(b, 2), NvmeBytes.U16(b, 78), version,
+            NvmeBytes.U32(b, 516), b[261], b[262] + 1, NvmeBytes.U16(b, 266), NvmeBytes.U16(b, 268), version >= 0x10300 && version != uint.MaxValue && (NvmeBytes.U16(b, 322) & 1) != 0)
+        { Features = string.Join(", ", features) };
     }
 }
 public static class NvmeNamespaceParser

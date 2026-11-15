@@ -12,10 +12,11 @@ public static class AssessmentPolicies
         var checks = new List<AssessmentCheck>();
         var status = value.Commands.FirstOrDefault(c => c.Operation == AtaOperation.SmartStatus);
         bool? passed = status is null ? null : SmartReturnStatus.Interpret(status);
+        bool attributeLife = passed is null && RemainLifeConfirms(value);
         checks.Add(C("SATA.SMART_STATUS", "Device-reported SMART status", true,
-            passed is null ? CheckOutcome.Missing : passed.Value ? CheckOutcome.Pass : CheckOutcome.Fail,
+            attributeLife ? CheckOutcome.Pass : passed is null ? CheckOutcome.Missing : passed.Value ? CheckOutcome.Pass : CheckOutcome.Fail,
             passed == false ? AssessmentState.Critical : AssessmentState.NoIssuesDetected,
-            passed is null ? status is null ? "SMART RETURN STATUS was not queried." : $"{status.Outcome}: {status.Explanation}" : passed.Value ? "Device-reported threshold condition not exceeded." : "Device-reported threshold condition exceeded.",
+            attributeLife ? "SMART status registers were not returned. Remain life 100, reallocated sectors 0, temperature below 75 C." : passed is null ? status is null ? "SMART RETURN STATUS was not queried." : $"{status.Outcome}: {status.Explanation}" : passed.Value ? "Device-reported threshold condition not exceeded." : "Device-reported threshold condition exceeded.",
             "ATA SMART RETURN STATUS", status?.ObservedAt, "Selected SATA device"));
         foreach (AtaOperation op in new[] { AtaOperation.SmartData, AtaOperation.SmartThresholds })
         {
@@ -74,6 +75,14 @@ public static class AssessmentPolicies
         return Finish(checks, NvmeVersion, scope);
     }
 
+    private static bool RemainLifeConfirms(SataDiagnostics value)
+    {
+        var life = value.Attributes.FirstOrDefault(a => a.Id == 0xA9);
+        var reallocated = value.Attributes.FirstOrDefault(a => a.Id == 0x05);
+        var temperature = value.Attributes.FirstOrDefault(a => a.Id == 0xC2);
+        return life?.Current == 100 && reallocated?.RawBytes is { Length: > 0 } raw && raw.All(b => b == 0)
+            && temperature?.RawBytes is { Length: > 0 } rawTemperature && rawTemperature[0] < 75;
+    }
     private static AssessmentCheck C(string id, string name, bool mandatory, CheckOutcome outcome, AssessmentState severity, string evidence, string source, DateTimeOffset? at, string scope) => new(id, name, mandatory, outcome, severity, evidence, source, at, scope);
     private static HealthAssessment Finish(List<AssessmentCheck> checks, string version, string scope)
     {

@@ -9,6 +9,7 @@ using pixinit.Core.Abstractions;
 using pixinit.Core.Devices;
 using pixinit.Infrastructure.Logging;
 using pixinit.Infrastructure.Windows.Interop;
+using pixinit.Infrastructure.Windows.Nvme;
 
 namespace pixinit.Infrastructure.Windows.Discovery;
 
@@ -29,7 +30,7 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
             var fallback = new List<StorageDevice>();
             SupplementPhysicalDisks(fallback, cancellationToken);
             if (fallback.Count == 0) throw;
-            return Task.FromResult(MapVolumes(RaidDisplayFallback.Apply(Deduplicate(fallback), RaidDisplayFallback.Read(cancellationToken)), cancellationToken));
+            return Task.FromResult(ControllerMapBuilder.Apply(MapVolumes(RaidDisplayFallback.Apply(Deduplicate(fallback), RaidDisplayFallback.Read(cancellationToken)), cancellationToken)));
         }
     }
 
@@ -74,7 +75,7 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
         SupplementPhysicalDisks(devices, token);
         var unique = Deduplicate(devices);
         unique = RaidDisplayFallback.Apply(unique, RaidDisplayFallback.Read(token));
-        var mapped = MapVolumes(unique, token);
+        var mapped = ControllerMapBuilder.Apply(MapVolumes(unique, token));
         token.ThrowIfCancellationRequested();
         DiscoveryLog.Write($"Discovery completed: {mapped.Count} disks; SATA={mapped.Count(d => d.Protocol == StorageProtocol.Sata)}, NVMe={mapped.Count(d => d.Protocol == StorageProtocol.Nvme)}, Other={mapped.Count(d => d.Protocol == StorageProtocol.Unknown)}.");
         return mapped;
@@ -229,7 +230,13 @@ public sealed class WindowsDiskDiscovery : IDeviceDiscovery
             var link = PcieLinkReader.Read(instance);
             if (link is not null) device = device with { PcieGeneration = link.Generation, PcieLaneWidth = link.Width, PcieLinkSource = "Windows PnP current PCIe link properties: " + link.InstanceId };
         }
-        return device with { Access = denied || device.Access == DeviceAccess.AccessDenied ? DeviceAccess.AccessDenied : queryFailed || device.Protocol == StorageProtocol.Unknown ? DeviceAccess.Limited : DeviceAccess.Available, Limitations = string.Join(" ", issues) + " " + device.Limitations + " " + device.ProtocolEvidence };
+        if (queryOverride is null && device.Bus == ConnectionBus.Usb) device = UsbBridgeProbe.Apply(device, path, token);
+        if (device.Bus == ConnectionBus.Nvme && device.Protocol == StorageProtocol.Nvme) device = NvmeControllerIdentity.Apply(device, Query);
+        var access = denied || device.Access == DeviceAccess.AccessDenied ? DeviceAccess.AccessDenied : queryFailed || device.Protocol == StorageProtocol.Unknown ? DeviceAccess.Limited : DeviceAccess.Available;
+        string limitation = string.Join(" ", issues) + " " + device.Limitations + " " + device.ProtocolEvidence;
+        if (access == DeviceAccess.Limited) limitation = "Access Limited. " + (denied ? "Run as administrator. " : "Windows did not confirm the protocol or a metadata query failed. ") + limitation;
+        DiscoveryLog.Write($"Disk decision: disk={device.DiskNumber}; bus={device.Bus}; media={device.Media}; heuristic={device.ProtocolHeuristic}; protocol={device.Protocol}; access={access}; bridge={device.BridgeChip ?? "n/a"}; usb={device.UsbSpeed ?? "n/a"}; serial ending={(string.IsNullOrWhiteSpace(device.Serial) ? "unknown" : device.Serial.Trim()[^Math.Min(4, device.Serial.Trim().Length)..])}.");
+        return device with { Access = access, Limitations = limitation };
     }
 
     private static byte[] QueryProperty(Func<uint, byte[]?, int, byte[]> query, uint property)

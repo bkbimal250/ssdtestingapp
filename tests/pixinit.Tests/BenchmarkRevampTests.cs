@@ -64,15 +64,23 @@ internal static partial class Program
         }
         finally { System.IO.Directory.Delete(lowSpaceRoot); }
 
-        Check(vm.Iterations == 1 && !vm.TimedMode && vm.FileSizeMiB == 512 && !vm.SustainedWrite && vm.UseUnbuffered, "Quick defaults use one fixed-workload pass, a 512 MiB file and no sustained writes");
-        Check(vm.Configuration().RequiredFileBytes == 512L * 1048576 && vm.Configuration().MaximumWriteBytes() < 2L * 1073741824, "Quick cumulative application writes stay below 2 GiB and peak benchmark-file allocation is 512 MiB without running it");
+        Check(vm.Iterations == 1 && !vm.TimedMode && vm.FileSizeMiB == 1024 && !vm.SustainedWrite && vm.UseUnbuffered, "SSD speed test defaults to one fixed-workload pass, a 1 GiB file and no sustained writes");
+        Check(vm.Configuration().RequiredFileBytes == 1024L * 1048576 && vm.Configuration().MaximumWriteBytes() < 3L * 1073741824, "Default cumulative application writes stay below 3 GiB and peak benchmark-file allocation is 1 GiB without running it");
+        vm.TargetDirectory = @"C:\PIXINIT_TEST";
+        Check(vm.TargetDirectoryCompact == @"C:\PIXINIT_TEST", "Short benchmark target remains visible in the location card");
+        vm.TargetDirectory = @"C:\Users\Example\AppData\Local\PIXINIT_TEST";
+        Check(vm.TargetDirectoryCompact == @"C:\...\PIXINIT_TEST" && vm.TargetDirectory.EndsWith(@"\PIXINIT_TEST", StringComparison.Ordinal), "Long benchmark target is compacted only for display");
+        vm.TargetDirectory = @"C:\PIXINIT_TEST";
+        vm.Size512Command.Execute(null);
+        Check(vm.FileSizeMiB == 512 && vm.Configuration().FileSizeBytes == 512L * 1048576, "Five hundred MB choice uses the existing aligned 512 MiB unbuffered file size without running a benchmark");
+        vm.Size1024Command.Execute(null);
         bool cloudBlocked = false;
         try { BenchmarkViewModel.ValidateBenchmarkLocation(@"C:\Users\example\OneDrive\Desktop\test"); } catch (InvalidOperationException) { cloudBlocked = true; }
         BenchmarkViewModel.ValidateBenchmarkLocation(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pixinit-local"));
         Check(cloudBlocked, "OneDrive target is refused before preparation while local targets remain available");
         vm.SetSuggestedTarget(SyntheticNvme() with { MountPoints = [System.IO.Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))!] });
-        Check(vm.TargetDirectory.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), StringComparison.OrdinalIgnoreCase), "Suggested target on system volume is local application data, not redirected Desktop");
-        vm.DeepModeCommand.Execute(null); Check(vm.SustainedDurationSeconds == 30 && vm.SustainedBudgetMiB == 16384, "Deep changes sustained duration without enlarging its byte ceiling");
+        Check(vm.TargetDirectory == System.IO.Path.Combine(System.IO.Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))!, "PIXINIT_TEST"), "Suggested target uses the selected disk root and hides AppData");
+        vm.DeepModeCommand.Execute(null); Check(vm.SustainedDurationSeconds == BenchmarkViewModel.SmartDuration(30, vm.TargetUsedPercent, vm.TargetFreeBytes) && vm.SustainedBudgetMiB == 16384, "Deep duration respects selected-volume space limits without enlarging its byte ceiling");
         vm.QuickModeCommand.Execute(null); Check(!vm.SustainedWrite && !vm.TimedMode && vm.Configuration().Unbuffered, "Quick restores bounded native workloads without enabling sustained");
         Check(BenchmarkViewModel.SmartDuration(30, 89) == 5 && BenchmarkViewModel.SmartDuration(15, 80) == 15 && BenchmarkViewModel.SmartDuration(15, null) == 15, "Smart duration uses observed volume fullness with an exact greater-than-80 threshold");
         bool refused = false; try { BenchmarkViewModel.ValidateStartSpace(10L * 1073741824); } catch (InvalidOperationException) { refused = true; }

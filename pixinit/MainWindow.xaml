@@ -1,109 +1,223 @@
-<Window x:Class="pixinit.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:shared="clr-namespace:pixinit.Views.Shared" xmlns:benchmark="clr-namespace:pixinit.Views.Benchmark" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sata="clr-namespace:pixinit.Views.Sata" xmlns:nvme="clr-namespace:pixinit.Views.Nvme" Style="{StaticResource {x:Type Window}}" Title="PIXINIT · Storage diagnostics" Width="1240" Height="820" MinWidth="760" MinHeight="640" WindowStartupLocation="CenterScreen">
+<Window x:Class="pixinit.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:shell="clr-namespace:pixinit.ViewModels.Shell" xmlns:benchmark="clr-namespace:pixinit.Views.Benchmark" Title="PIXINIT" Width="760" Height="560" MinWidth="760" MaxWidth="760" MinHeight="560" MaxHeight="560" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" WindowState="Normal" Background="#FFFFFF" Foreground="#000000" FontFamily="Segoe UI" FontSize="11" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType" UseLayoutRounding="True" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality">
   <Window.Resources>
-    <DataTemplate x:Key="DeviceNavigationTemplate">
-      <StackPanel ToolTip="{Binding DisplayName}">
-        <TextBlock Text="{Binding DiskNumber, StringFormat=Disk {0}, TargetNullValue=Physical disk}" FontSize="11" Foreground="#64748B" Margin="0,0,0,5"/>
-        <TextBlock Text="{Binding Model}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
-        <TextBlock Text="{Binding NavigationCapacity}" FontSize="12" Foreground="#475569" Margin="0,6,0,0"/>
-        <Border Background="#EFF6FF" CornerRadius="4" Padding="5" Margin="0,6,0,0"><TextBlock Text="{Binding ProtocolBadge}" FontSize="11" TextWrapping="Wrap"/></Border>
-        <DockPanel Margin="0,5,0,0"><Ellipse Width="7" Height="7" Fill="#94A3B8" Margin="0,0,5,0" VerticalAlignment="Top" ToolTip="Live health is shown in diagnostics after a validated read"/><TextBlock Text="{Binding AccessBadge}" Foreground="#64748B" FontSize="11" TextWrapping="Wrap"/></DockPanel>
-        <TextBlock Text="{Binding SerialSuffix}" Foreground="#64748B" FontSize="11" Margin="0,5,0,0"/>
-      </StackPanel>
-    </DataTemplate>
-    <Style x:Key="DeviceNavigationItem" TargetType="ListBoxItem">
-      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-      <Setter Property="Padding" Value="12"/>
-      <Setter Property="Margin" Value="0,0,0,8"/>
+    <shell:DiskPickerTextConverter x:Key="DiskPickerText"/>
+    <shell:DashboardScaleConverter x:Key="DashboardScale"/><shell:DashboardSingleLineConverter x:Key="SingleLine"/><shell:QcReasonConverter x:Key="QcReason"/>
+    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#000000"/><Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/></Style>
+    <Style x:Key="DashboardButton" TargetType="Button"><Setter Property="Height" Value="32"/><Setter Property="MinWidth" Value="0"/><Setter Property="MinHeight" Value="0"/><Setter Property="Background" Value="#FFB800"/><Setter Property="Foreground" Value="#000000"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" BorderBrush="#000000" BorderThickness="1" Padding="4"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+    <DataTemplate x:Key="PhysicalDiskOptionTemplate"><TextBlock Height="28" VerticalAlignment="Center" Foreground="#000000" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"><TextBlock.Text><MultiBinding Converter="{StaticResource DiskPickerText}" ConverterParameter="Short"><Binding/><Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ComboBox}"/><Binding Path="DataContext.PickerRevision" RelativeSource="{RelativeSource AncestorType=ComboBox}"/></MultiBinding></TextBlock.Text><TextBlock.ToolTip><StackPanel><TextBlock Text="{Binding Model}" FontWeight="Bold"/><TextBlock Text="{Binding Serial, StringFormat=Serial: {0}}"/><TextBlock Text="{Binding CapacityDisplay, StringFormat=Size: {0}}"/></StackPanel></TextBlock.ToolTip></TextBlock></DataTemplate>
+    <Style x:Key="PhysicalDiskOption" TargetType="ComboBoxItem">
+      <Setter Property="Foreground" Value="#000000"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="8,5"/>
       <Setter Property="Background" Value="White"/>
-      <Setter Property="BorderBrush" Value="#E5E7EB"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
-        <Border x:Name="DeviceCard" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Stretch"/></Border>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
+        <Border x:Name="OptionSurface" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" BorderBrush="#000000" BorderThickness="0,0,0,1"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="Stretch"/></Border>
         <ControlTemplate.Triggers>
-          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="DeviceCard" Property="Background" Value="#F1F5F9"/></Trigger>
-          <Trigger Property="IsSelected" Value="True"><Setter TargetName="DeviceCard" Property="Background" Value="#EFF6FF"/><Setter TargetName="DeviceCard" Property="BorderBrush" Value="#93C5FD"/></Trigger>
-          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="DeviceCard" Property="BorderBrush" Value="#2563EB"/><Setter TargetName="DeviceCard" Property="BorderThickness" Value="2"/></Trigger>
+          <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="OptionSurface" Property="Background" Value="#FFB800"/></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="OptionSurface" Property="Background" Value="#FFB800"/></Trigger>
         </ControlTemplate.Triggers>
       </ControlTemplate></Setter.Value></Setter>
     </Style>
-    <Style x:Key="DeviceNavigationList" TargetType="ListBox">
-      <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="Padding" Value="0"/>
-      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-      <Setter Property="ItemContainerStyle" Value="{StaticResource DeviceNavigationItem}"/>
-      <Setter Property="ItemTemplate" Value="{StaticResource DeviceNavigationTemplate}"/>
-    </Style>
-  </Window.Resources>
-  <Grid Background="{StaticResource CanvasBrush}">
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="*" />
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
-    </Grid.RowDefinitions>
-    <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="22,14">
-      <Grid>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-        <StackPanel Orientation="Horizontal">
-          <Border Background="{StaticResource AccentBrush}" CornerRadius="6" Padding="10,5" Margin="0,0,12,0">
-            <TextBlock Text="P" Foreground="White" FontSize="22" FontWeight="Bold" />
+    <Style x:Key="PhysicalDiskPicker" TargetType="ComboBox">
+      <Setter Property="Foreground" Value="#000000"/><Setter Property="Background" Value="#FFFFFF"/><Setter Property="MaxDropDownHeight" Value="180"/><Setter Property="StaysOpenOnEdit" Value="False"/><Setter Property="MinHeight" Value="28"/>
+      <Setter Property="ItemTemplate" Value="{StaticResource PhysicalDiskOptionTemplate}"/>
+      <Setter Property="ItemContainerStyle" Value="{StaticResource PhysicalDiskOption}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+        <Grid>
+          <Border x:Name="PickerSurface" Background="White" BorderBrush="#000000" BorderThickness="1" CornerRadius="6">
+            <Grid>
+              <ToggleButton Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="Transparent"><Path Data="M 3,5 L 8,10 L 13,5" Stroke="#000000" StrokeThickness="1.7" Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/></Border></ControlTemplate></ToggleButton.Template>
+              </ToggleButton>
+              <ContentPresenter IsHitTestVisible="False" Margin="12,0,36,0" VerticalAlignment="Center" Content="{TemplateBinding SelectedItem}" ContentTemplate="{TemplateBinding ItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"/>
+            </Grid>
           </Border>
-          <StackPanel>
-            <TextBlock Text="PIXINIT" FontSize="22" FontWeight="Bold" />
-            <TextBlock Text="Storage diagnostics workspace" Style="{StaticResource Muted}" />
-          </StackPanel>
-        </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button Content="_Cancel" Command="{Binding CancelCommand}" AutomationProperties.Name="Cancel discovery" Margin="0,0,8,0" />
-          <Button Content="Scan _Drives" Command="{Binding ScanCommand}" ToolTip="{Binding ScanExplanation}" ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="Scan drives" AutomationProperties.HelpText="{Binding ScanExplanation}" />
-        </StackPanel>
-      </Grid>
-    </Border>
-    <Border Grid.Row="1" Background="#EAF0FA" Padding="22,9">
-      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <TextBlock Text="Physical disk" VerticalAlignment="Center" Margin="0,0,12,0"/>
-        <ComboBox Grid.Column="1" ItemsSource="{Binding AllDevices}" SelectedItem="{Binding SelectedDisk}" DisplayMemberPath="DisplayName" MinWidth="240" AutomationProperties.Name="Select physical disk"/>
-      </Grid>
-    </Border>
-    <TabControl x:Name="WorkspaceTabs" SelectedIndex="{Binding WorkspaceIndex}" Grid.Row="2" Grid.RowSpan="2" Margin="16,12,16,10" AutomationProperties.Name="Workspace sections">
-      <TabItem Header="_Diagnostics"><Grid>
-    <TabControl x:Name="ProtocolTabs" SelectedIndex="{Binding ActiveTab}" Margin="16,14,16,10" Background="{StaticResource CanvasBrush}" BorderBrush="{StaticResource LineBrush}" AutomationProperties.Name="Storage protocol">
-      <TabItem Header="_SATA" AutomationProperties.Name="SATA">
-        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-          <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="12"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="All detected disks" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Grid.Row="1" Text="No SATA devices discovered" TextWrapping="Wrap" Style="{StaticResource Muted}" Visibility="{Binding SataEmpty, Converter={StaticResource BoolVisibility}}"/><ListBox Grid.Row="2" Style="{StaticResource DeviceNavigationList}" ItemsSource="{Binding AllDevices}" SelectedItem="{Binding SelectedDisk}" AutomationProperties.Name="All detected disks in SATA diagnostics" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True"></ListBox></Grid></Border>
-          <sata:SataView Grid.Column="1" DataContext="{Binding Sata}"/>
+          <Popup x:Name="PART_Popup" Placement="Bottom" PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="None" Width="{TemplateBinding ActualWidth}">
+            <Border Background="White" BorderBrush="#000000" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" MaxHeight="{TemplateBinding MaxDropDownHeight}"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsPresenter x:Name="ItemsPresenter"/></ScrollViewer></Border>
+          </Popup>
         </Grid>
-      </TabItem>
-      <TabItem Header="_NVMe" AutomationProperties.Name="NVMe">
-        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-          <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="12"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="All detected disks" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Grid.Row="1" Text="No NVMe devices discovered" TextWrapping="Wrap" Style="{StaticResource Muted}" Visibility="{Binding NvmeEmpty, Converter={StaticResource BoolVisibility}}"/><ListBox Grid.Row="2" Style="{StaticResource DeviceNavigationList}" ItemsSource="{Binding AllDevices}" SelectedItem="{Binding SelectedDisk}" AutomationProperties.Name="All detected disks in NVMe diagnostics" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True"></ListBox></Grid></Border>
-          <nvme:NvmeView Grid.Column="1" DataContext="{Binding Nvme}"/>
-        </Grid>
-      </TabItem>
-    </TabControl></Grid>
-      </TabItem>
-    <TabItem x:Name="BenchmarkTab" Header="_Benchmark" AutomationProperties.Name="Benchmark"><Grid><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><benchmark:BenchmarkView Margin="16" DataContext="{Binding Benchmark}"/></ScrollViewer></Grid></TabItem>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="PickerSurface" Property="BorderBrush" Value="#FFB800"/></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter TargetName="PickerSurface" Property="Background" Value="#FFFFFF"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
 
-
-
-    </TabControl>
-    <Border Grid.Row="4" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="22,8">
-      <Grid>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-        <StackPanel>
-          <TextBlock Text="{Binding FooterSummary}" TextWrapping="Wrap" Style="{StaticResource Muted}" AutomationProperties.LiveSetting="Polite" />
-          
-        </StackPanel>
-        
+  </Window.Resources>
+  <Grid x:Name="DashboardViewport" Background="#FFFFFF">
+    <Grid x:Name="DashboardLayout" Width="760" Height="536" HorizontalAlignment="Center" VerticalAlignment="Center">
+      <Grid.LayoutTransform><ScaleTransform><ScaleTransform.ScaleX><MultiBinding Converter="{StaticResource DashboardScale}"><Binding ElementName="DashboardViewport" Path="ActualWidth"/><Binding ElementName="DashboardViewport" Path="ActualHeight"/></MultiBinding></ScaleTransform.ScaleX><ScaleTransform.ScaleY><MultiBinding Converter="{StaticResource DashboardScale}"><Binding ElementName="DashboardViewport" Path="ActualWidth"/><Binding ElementName="DashboardViewport" Path="ActualHeight"/></MultiBinding></ScaleTransform.ScaleY></ScaleTransform></Grid.LayoutTransform>
+      <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="460"/><RowDefinition Height="28"/></Grid.RowDefinitions>
+      <Border Background="#000000"><Grid Margin="8,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="110"/><ColumnDefinition Width="260"/><ColumnDefinition Width="88"/></Grid.ColumnDefinitions>
+        <Image Source="Assets/pixinit-logo.png" Width="142" Height="32" HorizontalAlignment="Left" AutomationProperties.Name="PIXINIT"/>
+        <TextBlock Grid.Column="1" Text="{Binding DeviceSummary}" Foreground="#FFFFFF" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+        <ComboBox x:Name="DiskPicker" Grid.Column="2" Width="260" Height="28" ItemsSource="{Binding AllDevices}" SelectedItem="{Binding SelectedDisk, Mode=TwoWay}" Style="{StaticResource PhysicalDiskPicker}" DropDownOpened="PhysicalDiskPicker_Opened" AutomationProperties.Name="Select physical disk"/>
+        <Button Grid.Column="3" Width="80" Content="Scan" Command="{Binding ScanCommand}" Style="{StaticResource DashboardButton}" HorizontalAlignment="Right"/>
+      </Grid></Border>
+      <Grid Grid.Row="1">
+        <TabControl x:Name="RightTabs" Width="720" Height="460" Margin="10,0" HorizontalAlignment="Center" Background="#FFFFFF" BorderBrush="#000000" Foreground="#000000" SelectedIndex="0">
+          <TabItem Header="Benchmark" Foreground="#000000">
+            <ScrollViewer x:Name="BenchmarkScroll" Height="420" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="True" Background="#FFFFFF">
+              <benchmark:BenchmarkView x:Name="EmbeddedBenchmark" DataContext="{Binding Benchmark}" Width="700" VerticalAlignment="Top" HorizontalAlignment="Center" SnapsToDevicePixels="True"/>
+            </ScrollViewer>
+          </TabItem>
+          <TabItem Header="Diagnostics" Foreground="#000000">
+            <TabItem.Resources>
+              <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                <Setter Property="ToolTip" Value="{x:Null}"/>
+              </Style>
+            </TabItem.Resources>
+            <ScrollViewer x:Name="OverviewScroll" Height="420" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="16">
+              <StackPanel>
+                <Border Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                  <StackPanel>
+                    <Grid>
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding SelectedDisk.DisplayName, TargetNullValue=Select a drive}" FontSize="15" FontWeight="Bold" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <Button Grid.Column="1" Height="32" FontWeight="Bold" Foreground="#000000" Command="{Binding DashboardRefreshCommand}" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button.Style>
+                          <Style TargetType="Button" BasedOn="{StaticResource DashboardButton}">
+                            <Setter Property="Content" Value="Read SATA diagnostics"/>
+                            <Setter Property="Height" Value="32"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Foreground" Value="#000000"/>
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding ShowNvmeDiagnostics}" Value="True"><Setter Property="Content" Value="Read NVMe diagnostics"/></DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Button.Style>
+                      </Button>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                      <Border MinHeight="22" Padding="8,4" Background="#F5F5F5" CornerRadius="11" Margin="0,0,8,0">
+                        <TextBlock FontSize="11" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                              <Setter Property="Text" Value="{Binding Sata.LinkDisplay}"/>
+                              <Style.Triggers><DataTrigger Binding="{Binding ShowNvmeDiagnostics}" Value="True"><Setter Property="Text" Value="{Binding Nvme.LinkDisplay}"/></DataTrigger></Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
+                      </Border>
+                      <Border MinHeight="22" Padding="8,4" Background="#F5F5F5" CornerRadius="11">
+                        <TextBlock FontSize="11" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                              <Setter Property="Text" Value="{Binding SataOperationStatus}"/>
+                              <Style.Triggers><DataTrigger Binding="{Binding ShowNvmeDiagnostics}" Value="True"><Setter Property="Text" Value="{Binding NvmeOperationStatus}"/></DataTrigger></Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
+                      </Border>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+                <Border Margin="0,12,0,0" BorderBrush="#FFB800" BorderThickness="1" Padding="10" CornerRadius="8" Background="#FFFFFF">
+                  <TextBlock FontSize="11" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                        <Setter Property="Text" Value="{Binding Sata.FirstPageWarnings}"/>
+                        <Style.Triggers><DataTrigger Binding="{Binding ShowNvmeDiagnostics}" Value="True"><Setter Property="Text" Value="{Binding Nvme.FirstPageWarnings}"/></DataTrigger></Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                </Border>
+                <Grid Margin="0,12,0,0">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <Border Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                    <StackPanel>
+                      <TextBlock Text="Drive identity" FontSize="13" FontWeight="Bold" Foreground="#000000" Margin="0,0,0,8"/>
+                      <ItemsControl x:Name="IdentityFields" ItemsSource="{Binding DashboardIdentity}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" MinHeight="28" Padding="0,4">
+                              <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Label}" FontSize="12" Foreground="#666666" VerticalAlignment="Center" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" MaxWidth="220" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                      <Setter Property="FontWeight" Value="Normal"/>
+                                      <Style.Triggers><DataTrigger Binding="{Binding Label}" Value="Model"><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                                <Button Grid.Column="2" Content="Copy" Height="20" Width="40" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center" Click="CopyField" Tag="{Binding Value}">
+                                  <Button.Style>
+                                    <Style TargetType="Button">
+                                      <Setter Property="Visibility" Value="Collapsed"/>
+                                      <Setter Property="Height" Value="20"/>
+                                      <Setter Property="Width" Value="40"/>
+                                      <Setter Property="FontSize" Value="10"/>
+                                      <Setter Property="Padding" Value="0"/>
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Label}" Value="Firmware"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                        <DataTrigger Binding="{Binding Label}" Value="Serial"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </Button.Style>
+                                </Button>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+                  <StackPanel Grid.Column="2">
+                    <Border Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                      <StackPanel>
+                        <TextBlock Text="Health" FontSize="13" FontWeight="Bold" Foreground="#000000" Margin="0,0,0,8"/>
+                        <ItemsControl x:Name="HealthFields" ItemsSource="{Binding DashboardHealth}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" MinHeight="28" Padding="0,4">
+                                <Grid VerticalAlignment="Center">
+                                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                  <TextBlock Text="{Binding Label}" FontSize="12" Foreground="#666666" VerticalAlignment="Center" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,8,0"/>
+                                  <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" MaxWidth="160" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Border>
+                    <Border Margin="0,12,0,0" Background="#FFFFFF" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="8" Padding="14">
+                      <StackPanel>
+                        <TextBlock Text="Usage" FontSize="13" FontWeight="Bold" Foreground="#000000" Margin="0,0,0,8"/>
+                        <StackPanel>
+                          <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                              <Setter Property="Visibility" Value="Collapsed"/>
+                              <Style.Triggers><DataTrigger Binding="{Binding ShowNvmeDiagnostics}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                            </Style>
+                          </StackPanel.Style>
+                          <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" MinHeight="28" Padding="0,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Used" FontSize="12" Foreground="#666666" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Nvme.UsedPercentDisplay}" FontSize="12" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" MaxWidth="160" HorizontalAlignment="Right"/></Grid></Border>
+                          <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" MinHeight="28" Padding="0,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Total" FontSize="12" Foreground="#666666" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Nvme.TotalStorageDisplay}" FontSize="12" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" MaxWidth="160" HorizontalAlignment="Right"/></Grid></Border>
+                          <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" MinHeight="28" Padding="0,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Free" FontSize="12" Foreground="#666666" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Nvme.FreeStorageDisplay}" FontSize="12" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" MaxWidth="160" HorizontalAlignment="Right"/></Grid></Border>
+                          <TextBlock Text="{Binding Nvme.StorageStatusText}" FontSize="11" Foreground="#666666" TextWrapping="Wrap" TextTrimming="None" Margin="0,6,0,0"/>
+                        </StackPanel>
+                        <StackPanel>
+                          <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                              <Setter Property="Visibility" Value="Visible"/>
+                              <Style.Triggers><DataTrigger Binding="{Binding ShowNvmeDiagnostics}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+                            </Style>
+                          </StackPanel.Style>
+                          <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" MinHeight="28" Padding="0,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Used" FontSize="12" Foreground="#666666" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Sata.UsedPercentDisplay}" FontSize="12" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" MaxWidth="160" HorizontalAlignment="Right"/></Grid></Border>
+                          <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" MinHeight="28" Padding="0,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Total" FontSize="12" Foreground="#666666" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Sata.TotalStorageDisplay}" FontSize="12" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" MaxWidth="160" HorizontalAlignment="Right"/></Grid></Border>
+                          <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" MinHeight="28" Padding="0,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Free" FontSize="12" Foreground="#666666" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Sata.FreeStorageDisplay}" FontSize="12" Foreground="#000000" TextWrapping="Wrap" TextTrimming="None" MaxWidth="160" HorizontalAlignment="Right"/></Grid></Border>
+                          <TextBlock Text="{Binding Sata.StorageStatusText}" FontSize="11" Foreground="#666666" TextWrapping="Wrap" TextTrimming="None" Margin="0,6,0,0"/>
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+        </TabControl>
       </Grid>
-    </Border>
+      <Border Grid.Row="2" Background="#000000"><Grid Margin="8,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Live Read - No Hardcode" Foreground="#FFFFFF" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="1" Text="{Binding DashboardFooter}" Foreground="#FFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/></Grid></Border>
+    </Grid>
   </Grid>
 </Window>

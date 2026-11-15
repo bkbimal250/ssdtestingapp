@@ -32,7 +32,7 @@ public sealed partial class BenchmarkViewModel : ObservableObject
     private string? consentSignature; internal IWriteConsent ConsentProvider { get; set; }
     public bool Busy { get; private set; }
     private string targetDirectory = "";
-    public string TargetDirectory { get => targetDirectory; set { targetDirectory = value; ConfigurationChanged(); Changed(); Changed(nameof(TargetNotice)); TargetFreeBytes = null; TargetUsedPercent = null; _ = RefreshTargetSpaceAsync(); } }
+    public string TargetDirectory { get => targetDirectory; set { targetDirectory = value; ConfigurationChanged(); Changed(); Changed(nameof(TargetDirectoryCompact)); Changed(nameof(TargetNotice)); Changed(nameof(SelectedTargetVolume)); Changed(nameof(OsDriveNotice)); TargetFreeBytes = null; TargetUsedPercent = null; _ = RefreshTargetSpaceAsync(); } }
     public IReadOnlyList<BenchmarkPreset> Presets { get; } = Enum.GetValues<BenchmarkPreset>();
     public BenchmarkPreset Preset { get => preset; set { if (preset == value) return; preset = value; ApplyPreset(); InvalidateConsent(); Changed(); } }
     public IReadOnlyList<int> FileSizes => UseUnbuffered ? [512, 1024, 2048] : [16, 32, 64, 128, 256, 512, 1024];
@@ -65,9 +65,10 @@ public sealed partial class BenchmarkViewModel : ObservableObject
     public TbwInfo? Tbw => result?.Tbw ?? (SelectedContextMatchesResult ? tbw() : null);
     public ThermalInfo? Thermal => result?.Thermal ?? (SelectedContextMatchesResult ? thermal() : null);
     public string TbwDisplay => Tbw?.WrittenTB is double written ? $"{(Tbw.InterpretationVerified ? "" : "Unverified estimate: ")}{written:F3} TB host writes; {Tbw.RatedTB:F0} TB {(Tbw.RatingVerified ? "manufacturer-rated endurance" : "reference (rating unverified)" )}" : Tbw is { RatedTB: > 0 } unavailable ? $"Host writes unavailable; {unavailable.RatedTB:F0} TBW estimated reference" : "Diagnostics not yet queried - Run Diagnostics Now";
-    public string TbwRemainingDisplay => Tbw?.RemainingPercent is double remaining ? $"{TbwRemainingLabel}: {remaining:F1}%" : $"{TbwRemainingLabel}: unavailable";
+    public string TbwRemainingDisplay => Tbw is { InterpretationVerified: true, RemainingPercent: double remaining } ? $"{TbwRemainingLabel}: {remaining:F1}%" : $"{TbwRemainingLabel}: unavailable";
     public string TbwRemainingLabel => Tbw?.RatingVerified == true ? "Rated endurance budget remaining" : "Reference remaining";
-    public string TbwRatingNote => Tbw?.RatingVerified == true ? "Manufacturer TBW is an endurance rating, not a direct remaining-health measurement." : $"{Tbw?.RatedTB ?? 600:F0} TB is an unverified reference, not a device rating or remaining health.";
+    public string TbwRatingNote => Tbw is { RatingVerified: true, InterpretationVerified: false } ? "Manufacturer TBW is verified, but SATA SMART host-write units are not. Remaining endurance cannot be calculated." :
+        Tbw?.RatingVerified == true ? "Manufacturer TBW is an endurance rating, not a direct remaining-health measurement." : $"{Tbw?.RatedTB ?? 600:F0} TB is an unverified reference, not a device rating or remaining health.";
     public double TbwRemaining => Tbw?.RemainingPercent ?? 0;
     public string TbwState => HealthAssessor.EnduranceState(Tbw);
     public string TemperatureDisplay => Thermal?.ObservedC is double celsius ? $"{celsius:F1} °C; {Thermal.State}{(Thermal.InterpretationVerified ? "" : " (unverified SMART encoding)")}; observation {Thermal.ObservedAt?.ToLocalTime():g}" : "Diagnostics not yet queried - Run Diagnostics Now";
@@ -83,7 +84,7 @@ public sealed partial class BenchmarkViewModel : ObservableObject
     }
     public bool SequentialRead { get; set; } = true; public bool SequentialWrite { get; set; } = true; public bool RandomRead { get; set; } = true; public bool RandomWrite { get; set; } = true;
     private int fileSizeMiB = 1024;
-    public int FileSizeMiB { get => fileSizeMiB; set { fileSizeMiB = value; ConfigurationChanged(); Changed(); } } public int SequentialBlockKiB { get; set; } = 1024; public int RandomBlockKiB { get; set; } = 4; private int iterations = 3; public int Iterations { get => iterations; set { iterations = value; ConfigurationChanged(); Changed(); Changed(nameof(PassesExplanation)); } } public int RandomOperations { get; set; } = 65536;
+    public int FileSizeMiB { get => fileSizeMiB; set { fileSizeMiB = value; ConfigurationChanged(); Changed(); } } public int SequentialBlockKiB { get; set; } = 1024; public int RandomBlockKiB { get; set; } = 4; private int iterations = 3; public int Iterations { get => iterations; set { iterations = value; ConfigurationChanged(); Changed(); Changed(nameof(PassesExplanation)); Changed(nameof(SelectedRepeatChoice)); } } public int RandomOperations { get; set; } = 65536;
     public string Status { get; private set; } = "Ready · choose a filesystem target and workload"; public string CurrentOperation { get; private set; } = "Idle";
     private double progressPercent;
     public double ProgressPercent
@@ -115,8 +116,11 @@ public sealed partial class BenchmarkViewModel : ObservableObject
         BrowseCommand = new(Browse); ApplyConfigurationCommand = new(ConfigurationChanged); StartCommand = new(async () => await RunFromUiAsync(), () => !Busy && !PreparingDiagnostics && !awaitingConsent && !preflighting && this.canStart() && (Directory.Exists(TargetDirectory) || TargetDirectory == suggestedDirectory)); CancelCommand = new(Cancel, () => (Busy || PreparingDiagnostics || preflighting) && cancellation?.IsCancellationRequested == false);
         InitializePresentation();
         SetTestMode(false);
+        FileSizeMiB = 1024;
+        SelectedProfiles = BenchmarkProfiles.Seq1MQ8T1 | BenchmarkProfiles.Rnd4KQ32T16;
         RetryCleanupCommand = new(async () => await RetryCleanupAsync(), () => !Busy && OwnedFilesNeedingCleanup.Count > 0);
     }
+    public Task ReadSelectedDiskLiveAsync() => readDiagnostics?.Invoke(CancellationToken.None) ?? Task.CompletedTask;
     public Task InitializeAsync() => FindOwnedFilesAsync();
     public BenchmarkConfiguration Configuration()
     {
@@ -227,10 +231,12 @@ public sealed partial class BenchmarkViewModel : ObservableObject
     public void SetSuggestedTarget(StorageDevice? device)
     {
         if (Busy) return;
-        string? path = device?.MountPoints.FirstOrDefault(p => Path.IsPathRooted(p) && string.Equals(Path.GetFullPath(p), Path.GetPathRoot(p), StringComparison.OrdinalIgnoreCase) && Directory.Exists(p));
+        var volumes = device?.MountPoints.Where(p => Path.IsPathRooted(p) && string.Equals(Path.GetFullPath(p), Path.GetPathRoot(p), StringComparison.OrdinalIgnoreCase) && Directory.Exists(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? [];
+        Changed(nameof(TargetVolumes));
+        string? path = volumes.FirstOrDefault(p => !string.Equals(p, Path.GetPathRoot(Environment.SystemDirectory), StringComparison.OrdinalIgnoreCase)) ?? volumes.FirstOrDefault();
+        Changed(nameof(UsbSpeedNotice)); Changed(nameof(HasUsbSpeedNotice)); Changed(nameof(ProtocolFooter));
         if (path is null) { suggestedDirectory = null; TargetDirectory = ""; return; }
-        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        suggestedDirectory = Path.Combine(string.Equals(Path.GetPathRoot(local), path, StringComparison.OrdinalIgnoreCase) ? local : path, "PIXINIT_TEST");
+        suggestedDirectory = Path.Combine(path, "PIXINIT_TEST");
         TargetDirectory = suggestedDirectory; InvalidateConsent(); Changed(nameof(TargetDirectory)); Changed(nameof(ConfigurationSummary)); StartCommand?.Refresh();
     }
     public void Close() { generation++; Cancel(); }

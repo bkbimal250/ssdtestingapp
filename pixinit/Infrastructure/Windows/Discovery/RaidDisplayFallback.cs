@@ -25,7 +25,13 @@ internal static class RaidDisplayFallback
                     token.ThrowIfCancellationRequested();
                     string? instance = Convert.ToString(WmiValue.Read(row, "InstanceName"));
                     if (!MatchesInstance(device, instance)) continue;
-                    if (WmiValue.Read(row, "VendorSpecific") is byte[] bytes && bytes.Length == 512) matches.Add(bytes.ToArray());
+                    var bytes = ToBytes(WmiValue.Read(row, "VendorSpecific"));
+                    if (bytes is { Length: >= 362 })
+                    {
+                        var page = new byte[512];
+                        bytes.AsSpan(0, Math.Min(512, bytes.Length)).CopyTo(page);
+                        matches.Add(page);
+                    }
                 }
                 finally { Release(row); }
             }
@@ -43,6 +49,14 @@ internal static class RaidDisplayFallback
     }
     internal static void LogPhysicalDiskHealth(StorageDevice device) =>
         DiscoveryLog.Write($"RAID SMART fallback Windows health: disk={device.DiskNumber}; serial ending={SerialSuffix(device.Serial)}; BusType={device.NativeBusType?.ToString() ?? device.Bus.ToString()}; MediaType={device.Media}; IsHeuristic={device.ProtocolHeuristic}; Protocol attempted=MSFT_PhysicalDisk health; SMART passthrough result={(string.IsNullOrWhiteSpace(device.WindowsHealthStatus) ? "health unavailable" : device.WindowsHealthStatus)}; error code=none; fallback source=Windows Storage API; OperationalStatus={device.WindowsAccessState ?? "N/A"}.");
+    private static byte[]? ToBytes(object? value)
+    {
+        if (value is byte[] bytes) return bytes;
+        if (value is not Array array || array.Length == 0) return null;
+        var result = new byte[array.Length];
+        for (int i = 0; i < array.Length; i++) result[i] = Convert.ToByte(array.GetValue(i));
+        return result;
+    }
     private static bool MatchesInstance(StorageDevice device, string? instance)
     {
         if (string.IsNullOrWhiteSpace(instance)) return false;

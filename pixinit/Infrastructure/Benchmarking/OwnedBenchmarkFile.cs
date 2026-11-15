@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
+using pixinit.Infrastructure.Logging;
 
 namespace pixinit.Infrastructure.Benchmarking;
 
@@ -29,8 +30,19 @@ public sealed class OwnedBenchmarkFileManager
             await File.WriteAllTextAsync(temporaryManifest, JsonSerializer.Serialize(record), token); File.Move(temporaryManifest, manifest);
             return record;
         }
-        catch { if (created && File.Exists(file)) File.Delete(file); throw; }
-        finally { if (created && File.Exists(temporaryManifest)) File.Delete(temporaryManifest); }
+        catch
+        {
+            try { if (created && File.Exists(file)) File.Delete(file); }
+            catch (IOException ex) { DiscoveryLog.Write("Benchmark preparation file cleanup failed", ex); }
+            catch (UnauthorizedAccessException ex) { DiscoveryLog.Write("Benchmark preparation file cleanup denied", ex); }
+            throw;
+        }
+        finally
+        {
+            try { if (created && File.Exists(temporaryManifest)) File.Delete(temporaryManifest); }
+            catch (IOException ex) { DiscoveryLog.Write("Benchmark temporary manifest cleanup failed", ex); }
+            catch (UnauthorizedAccessException ex) { DiscoveryLog.Write("Benchmark temporary manifest cleanup denied", ex); }
+        }
     }
     public async Task<bool> IsOwnedAsync(OwnedFileRecord record, CancellationToken token = default)
     {
@@ -71,9 +83,13 @@ public sealed class OwnedBenchmarkFileManager
             if (!SetFileInformationByHandle(handle, 4, ref deleteOnClose, 1))
                 throw new IOException("Unable to mark the verified owned handle for delete-on-close.", Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error()));
         }
-        File.Delete(record.ManifestPath);
-        string? directory = Path.GetDirectoryName(record.FilePath);
-        if (directory is not null && Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
+        try
+        {
+            File.Delete(record.ManifestPath);
+            string? directory = Path.GetDirectoryName(record.FilePath);
+            if (directory is not null && Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { DiscoveryLog.Write("Owned benchmark manifest cleanup failed", ex); }
     }
     public async Task<IReadOnlyList<OwnedFileRecord>> FindOrphansAsync(string targetDirectory, CancellationToken token = default)
     {

@@ -24,8 +24,8 @@ public sealed record StorageDevice(string Id, string Model, string? Serial,
     public string ProtocolEvidence { get; init; } = "";
     // A heuristic protocol classification may attempt the same read-only query path.
     // The provider still revalidates this disk's metadata and reports unsupported RAID passthrough.
-    public bool CanQuerySata => Protocol == StorageProtocol.Sata && ((Bus == ConnectionBus.Sata && NativeBusType == 11) || (Bus == ConnectionBus.Raid && NativeBusType == 8 && (RaidProtocolVerified || ProtocolHeuristic)));
-    public bool CanQueryNvme => Protocol == StorageProtocol.Nvme && ((Bus == ConnectionBus.Nvme && NativeBusType == 17) || (Bus == ConnectionBus.Raid && NativeBusType == 8 && (RaidProtocolVerified || ProtocolHeuristic)));
+    public bool CanQuerySata => Protocol == StorageProtocol.Sata && ((Bus == ConnectionBus.Sata && NativeBusType == 11) || (Bus == ConnectionBus.Usb && NativeBusType == 7) || (Bus == ConnectionBus.Raid && NativeBusType == 8 && (RaidProtocolVerified || ProtocolHeuristic)));
+    public bool CanQueryNvme => Protocol == StorageProtocol.Nvme && ((Bus == ConnectionBus.Nvme && NativeBusType == 17) || (Bus == ConnectionBus.Raid && NativeBusType == 8 && (RaidProtocolVerified || ProtocolHeuristic)) || (Bus == ConnectionBus.Usb && NativeBusType == 7 && UsbNvmeAdmin));
     public string? WindowsFriendlyName { get; init; }
     public string? WindowsSerial { get; init; }
     public string? WindowsFirmware { get; init; }
@@ -38,6 +38,11 @@ public sealed record StorageDevice(string Id, string Model, string? Serial,
     public int? PcieGeneration { get; init; }
     public int? PcieLaneWidth { get; init; }
     public string? PcieLinkSource { get; init; }
+    public string? UsbSpeed { get; init; }
+    public string? BridgeChip { get; init; }
+    public bool UsbNvmeAdmin { get; init; }
+    public string? InterfaceLabel { get; init; }
+    public string? ControllerMap { get; init; }
     public string PcieLinkDisplay => PcieGeneration is int gen && PcieLaneWidth is int width ? $"PCIe {gen}.0 x{width}" : "Link not reported by Windows";
     public string? Firmware { get; init; }
     public long? CapacityBytes { get; init; }

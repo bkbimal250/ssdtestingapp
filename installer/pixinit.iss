@@ -1,45 +1,53 @@
-#define MyAppName "PIXINIT"
-#define MyAppVersion "1.0.0"
-#define MyAppPublisher "PIXINIT"
-#define MyAppExeName "PIXINIT.exe"
+#ifndef AppVersion
+  #error AppVersion must be supplied from pixinit.csproj by scripts/build-release.ps1.
+#endif
+
+#define AppName "PIXINIT"
+#define AppDescription "SSD Read & Write Speed Testing Utility."
+#define AppExeName "PIXINIT.exe"
 
 [Setup]
+; Keep the original AppId for upgrades from previous PIXINIT and SSD Tester builds.
 AppId={{PIXINIT-1.0.0}}
-AppName={#MyAppName}
-AppVersion={#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-VersionInfoVersion={#MyAppVersion}
-VersionInfoCompany={#MyAppPublisher}
-VersionInfoDescription=PIXINIT Storage Diagnostics installer
+AppName={#AppName}
+AppVersion={#AppVersion}
+AppVerName={#AppName} {#AppVersion}
+#ifdef AppPublisher
+AppPublisher={#AppPublisher}
+VersionInfoCompany={#AppPublisher}
+#endif
+AppComments={#AppDescription}
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName={#AppName}
+VersionInfoProductVersion={#AppVersion}
+VersionInfoDescription={#AppDescription}
 DefaultDirName={autopf}\PIXINIT
 DefaultGroupName=PIXINIT
-DisableProgramGroupPage=yes
+UsePreviousAppDir=yes
+UsePreviousTasks=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputDir=..\artifacts\installer
+OutputDir=..\release\installer
 OutputBaseFilename=PIXINIT-Setup-1.0.0-win-x64
 SetupIconFile=..\pixinit\Assets\pixinit.ico
-UninstallDisplayIcon={app}\{#MyAppExeName}
-UninstallDisplayName=PIXINIT
+UninstallDisplayName={#AppName}
+UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+; Match the mutex held by App.xaml.cs for the application's lifetime.
+; Both Setup and Uninstall must wait for PIXINIT to close before changing files.
+AppMutex=Local\PIXINIT.SingleInstance
 CloseApplications=yes
 RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-[Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
-
 [Files]
-Source: "..\artifacts\publish\win-x64\PIXINIT.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\release\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\PIXINIT"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\PIXINIT"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-[Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch PIXINIT"; Flags: nowait postinstall skipifsilent
+Name: "{group}\PIXINIT"; Filename: "{app}\{#AppExeName}"
+Name: "{autodesktop}\PIXINIT"; Filename: "{app}\{#AppExeName}"

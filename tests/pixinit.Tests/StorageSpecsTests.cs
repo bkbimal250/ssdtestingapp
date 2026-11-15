@@ -36,15 +36,27 @@ internal static partial class Program
         var command = new AtaCommandResult(AtaOperation.SmartData, AtaOutcome.Success, "test", new byte[512], new byte[8], DateTimeOffset.UtcNow);
         SataSmartAttribute Row(byte id, ulong raw) => new(id, "test", null, null, null, "test", "test", "test") { RawBytes = Enumerable.Range(0, 6).Select(i => (byte)(raw >> (i * 8))).ToArray() };
         var sata = SataResultMapper.Map(Drive("sata-spec", pixinit.Core.Devices.StorageProtocol.Sata), null, new([Row(194, 76), Row(241, 1_000_000), Row(9, 20)], []), null, [command], []);
-        Check(sata.Temperature.Value == 76 && sata.PowerOnHours == 20 && sata.Tbw is { InterpretationVerified: false } && sata.Tbw.WrittenTB == 1_000_000 * 512d / 1e12, "SATA conventional 194/241/9 conversions retain their unverified vendor encoding disclosure");
+        Check(sata.Temperature.Value == 76 && sata.PowerOnHours == 20 && sata.Tbw is { InterpretationVerified: false } && sata.Tbw.WrittenTB is null, "SATA keeps conventional temperature/hours but rejects unverified host-byte conversion");
         var kingston = Drive("kingston", pixinit.Core.Devices.StorageProtocol.Sata) with { Model = "KINGSTON SA400S37240G", Serial = "50026B7682632542", CapacityBytes = 240_000_000_000 };
         var highUsageZero = SataResultMapper.Map(kingston, null, new([Row(241, 100_000), Row(242, 200_000)], []), null, [command], [], 66.8);
-        Check(highUsageZero.Tbw is { WrittenTB: null, RatedTB: 80 } && highUsageZero.UsageUsedPercent == 66.8 && highUsageZero.Tbw.Source.Contains("unavailable") && highUsageZero.Tbw.RemainingPercent is null, "SATA near-zero SMART 241 at high filesystem usage is unavailable, with the 240GB Kingston class reference");
+        Check(highUsageZero.Tbw is { WrittenTB: null, RatedTB: 80, RatingVerified: true, InterpretationVerified: false } && highUsageZero.UsageUsedPercent == 66.8 && highUsageZero.Tbw.Source.Contains("unavailable") && highUsageZero.Tbw.RemainingPercent is null, "SATA near-zero SMART 241 is unavailable while the exact Kingston 240GB manufacturer rating remains separate");
         var sataVm = new SataViewModel(); sataVm.SetDevice(kingston); sataVm.Apply(highUsageZero);
-        Check(sataVm.HostWrites.Contains("Unavailable") && sataVm.HostWrites.Contains("66.8%") && sataVm.HostWrites.Contains("50026B7682632542") && sataVm.Endurance.Contains("80 TBW estimated for 240GB class"), "SATA UI explains inaccessible Kingston writes and displays its estimated 80 TBW reference");
+        Check(sataVm.HostWrites.Contains("Unavailable") && sataVm.HostWrites.Contains("not supported") && sataVm.Endurance.Contains("Kingston A400 SA400S37/240G datasheet"), "SATA UI explains unsupported layouts and keeps the manufacturer rating separate");
         var lowUsageZero = SataResultMapper.Map(kingston, null, new([Row(241, 100_000)], []), null, [command], [], 0.1);
-        Check(lowUsageZero.Tbw?.WrittenTB == 100_000 * 512d / 1e12 && lowUsageZero.Tbw.RatedTB == 80, "SATA near-zero host writes remain available at low filesystem usage and use the 80 TBW 240GB class reference");
+        Check(lowUsageZero.Tbw is { WrittenTB: null, RatedTB: 80, InterpretationVerified: false }, "Filesystem fullness never validates unknown SMART units, independent of the Kingston rating");
+        var mismatchedKingston = kingston with { CapacityBytes = 256_000_000_000 };
+        Check(pixinit.Core.Diagnostics.Common.ManufacturerEnduranceCatalog.EstimateSata(mismatchedKingston) is { Verified: false },
+            "A mismatched capacity cannot inherit the exact Kingston model rating");
+        var absentCounter = SataResultMapper.Map(kingston, null, new([Row(241, 0), Row(242, 0)], []), null, [command], [], 0.1);
+        Check(absentCounter.Tbw?.WrittenTB is null && absentCounter.HostReadsTB is null,
+            "Zero SMART 241 and 242 values remain unavailable even when the filesystem is nearly empty");
         var duplicate = SataResultMapper.Map(Drive("sata-spec", pixinit.Core.Devices.StorageProtocol.Sata), null, new([Row(194, 76), Row(194, 77), Row(241, ulong.MaxValue)], []), null, [command], []);
+        foreach (ulong rawCounter in new ulong[] { 0, 1, 100_000, 20_000_000_000 })
+        {
+            var unknownUnits = SataResultMapper.Map(kingston, null, new([Row(241, rawCounter), Row(242, rawCounter)], []), null, [command], [], 99);
+            Check(unknownUnits.Tbw?.WrittenTB is null && unknownUnits.HostReadsTB is null && unknownUnits.Attributes.Count == 2,
+                $"SATA raw counter {rawCounter} remains available without fabricated lifetime bytes");
+        }
         Check(duplicate.Temperature.Value is null && duplicate.Tbw!.WrittenTB is null, "Duplicate and all-FF SATA fields are not interpreted");
         SpeedSample Sample(int sec, long bytes, double interval = 1) => new(sec, bytes / interval / 1e6) { Bytes = bytes, IntervalSeconds = interval };
         var samples = new[] { Sample(1, 100_000_000), Sample(2, 100_000_000), Sample(3, 100_000_000), Sample(4, 40_000_000), Sample(5, 50_000_000), Sample(6, 60_000_000, 1.2) };

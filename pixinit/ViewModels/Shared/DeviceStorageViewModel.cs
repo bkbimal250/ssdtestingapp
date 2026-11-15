@@ -8,8 +8,27 @@ public abstract partial class DeviceViewModel
     public sealed record InfoRow(string Label, string Value, bool NeedsDiagnostics = false);
     private long storageGeneration;
     private string selectedVolume = "";
+    public const string UnallocatedVolume = "No drive letter - Unallocated";
     public IReadOnlyList<string> Volumes { get; private set; } = [];
-    public string SelectedVolume { get => selectedVolume; set { if (selectedVolume == value || !Volumes.Contains(value, StringComparer.OrdinalIgnoreCase)) return; selectedVolume = value; Changed(); _ = RefreshStorageAsync(); } }
+    public IReadOnlyList<string> VolumeChoices => Volumes.Count > 0 ? Volumes : [UnallocatedVolume];
+    public bool HasVolumes => Volumes.Count > 0;
+    public bool HasNoVolumes => Device is not null && !HasVolumes;
+    public Task StorageRefreshTask { get; private set; } = Task.CompletedTask;
+    public string SelectedVolume
+    {
+        get => selectedVolume;
+        set
+        {
+            if (string.IsNullOrEmpty(value) || selectedVolume == value) return;
+            if (value == UnallocatedVolume)
+            {
+                if (Volumes.Count > 0) return;
+                selectedVolume = value; Changed(); StorageRefreshTask = RefreshStorageAsync(); return;
+            }
+            if (!Volumes.Contains(value, StringComparer.OrdinalIgnoreCase)) return;
+            selectedVolume = value; Changed(); StorageRefreshTask = RefreshStorageAsync();
+        }
+    }
     public long? TotalStorageBytes { get; private set; }
     public long? UsedStorageBytes { get; private set; }
     public long? FreeStorageBytes { get; private set; }
@@ -28,12 +47,16 @@ public abstract partial class DeviceViewModel
         return (drive.TotalSize, drive.AvailableFreeSpace);
     };
     public static string BytesDisplay(long? bytes) => bytes is long n ? $"{n / 1073741824d:N2} GiB / {n / 1e9:N2} GB" : "N/A";
-    private void SetVolumes()
+    public void UpdateVolumesForSelectedDisk()
     {
+        // Invalidate pending reads before changing the list. WPF may write the old
+        // selection back while ItemsSource changes, so assign the default afterwards.
+        storageGeneration++;
         Volumes = Device?.MountPoints.Where(IsDriveRoot).Select(p => char.ToUpperInvariant(p[0]) + @":\").Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(p => p).ToArray() ?? [];
-        selectedVolume = Volumes.FirstOrDefault() ?? "";
-        Changed(nameof(Volumes)); Changed(nameof(SelectedVolume));
-        _ = RefreshStorageAsync();
+        Changed(nameof(Volumes)); Changed(nameof(VolumeChoices)); Changed(nameof(HasVolumes)); Changed(nameof(HasNoVolumes));
+        selectedVolume = Volumes.FirstOrDefault() ?? (Device is null ? "" : UnallocatedVolume);
+        Changed(nameof(SelectedVolume));
+        StorageRefreshTask = RefreshStorageAsync();
     }
     private static bool IsDriveRoot(string path) => path.Length is 2 or 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && (path.Length == 2 || path[2] == '\\');
     public async Task RefreshStorageAsync()
@@ -41,9 +64,10 @@ public abstract partial class DeviceViewModel
         long current = ++storageGeneration;
         string volume = selectedVolume;
         TotalStorageBytes = Device?.CapacityBytes; UsedStorageBytes = FreeStorageBytes = null;
-        StorageMessage = Device is null ? "No drive selected" : volume.Length == 0 ? Device.MountPoints.Any(p => Path.IsPathRooted(p)) ? "Mapped volume has no drive letter - showing device capacity only" : "No mounted volume - showing device capacity only" : "Reading mounted volume usage...";
+        bool drive = volume.Length is 2 or 3 && char.IsAsciiLetter(volume[0]) && volume[1] == ':';
+        StorageMessage = Device is null ? "No drive selected" : !drive ? "No drive letter - Unallocated / No accessible volume. Showing physical disk capacity; used/free space unavailable." : "Reading mounted volume usage...";
         NotifyStorage();
-        if (volume.Length == 0) return;
+        if (!drive) return;
         try
         {
             var reader = ReadVolumeCapacity;
@@ -69,7 +93,19 @@ public abstract partial class DeviceViewModel
     protected IEnumerable<InfoRow> IdentityRows(string? model = null, string? firmware = null, string? serial = null) => new InfoRow[]
     {
         new("Model", model ?? Device?.WindowsFriendlyName ?? Device?.Model ?? "N/A"), new("Physical capacity", BytesDisplay(Device?.WindowsCapacityBytes ?? Device?.CapacityBytes)),
-        new("Firmware", firmware ?? Device?.WindowsFirmware ?? Device?.Firmware ?? "N/A"), new("Full serial", serial ?? Device?.WindowsSerial ?? Serial), new("Protocol", ProtocolDisplay), new("Reported bus", Device?.Bus.ToString() ?? "N/A"), new("Media", MediaDisplay), new("Access", AccessDisplay)
+        new("Firmware", firmware ?? Device?.WindowsFirmware ?? Device?.Firmware ?? "N/A"), new("Full serial", PickSerial(serial, Device)), new("Protocol", ProtocolDisplay), new("Reported bus", Device?.Bus == ConnectionBus.Usb ? $"{Device.Bus}{(string.IsNullOrWhiteSpace(Device.UsbSpeed) ? "" : " · " + Device.UsbSpeed)}" : Device?.Bus.ToString() ?? "N/A"), new("Media", MediaDisplay), new("Access", Device?.Access == DeviceAccess.Limited ? "Limited - " + (string.IsNullOrWhiteSpace(Device.Limitations) ? "Run as administrator. Windows still reported limited metadata." : Device.Limitations) : AccessDisplay)
     };
     protected static string FirstPageValue(string value) => value is "Unavailable" or "Not queried" ? "N/A" : value;
+    private static string PickSerial(string? diagnostic, StorageDevice? device)
+    {
+        if (!string.IsNullOrWhiteSpace(diagnostic)) return diagnostic;
+        if (device?.Serial is { Length: > 0 } serial && !IsEui64(serial)) return serial;
+        if (device?.WindowsSerial is { Length: > 0 } windows && !IsEui64(windows)) return windows;
+        return device?.Serial ?? device?.WindowsSerial ?? "N/A";
+    }
+    private static bool IsEui64(string value)
+    {
+        string compact = new string(value.Where(c => c is not ('_' or ' ' or '-')).ToArray());
+        return value.Contains('_') && compact.Length >= 16 && compact.All(Uri.IsHexDigit);
+    }
 }

@@ -23,11 +23,24 @@ internal static class SataIdentityGuard
     internal static void RequireSata(StorageDevice device)
     {
         if (!device.CanQuerySata || string.IsNullOrWhiteSpace(device.InterfacePath))
-            throw new AtaTransportException(AtaOutcome.Unsupported, "ATA dispatch requires a direct SATA interface or a SATA-classified heuristic path. NVMe, USB and unknown devices are rejected.");
+            throw new AtaTransportException(AtaOutcome.Unsupported, "Diagnostics require a SATA-classified direct, RAID or USB SAT path. NVMe and unknown devices are rejected.");
     }
     internal static void Validate(StorageDevice selected, StorageDevice current)
     {
         RequireSata(selected);
+        if (selected.Bus == ConnectionBus.Usb)
+        {
+            bool stable = current.Bus == ConnectionBus.Usb && current.NativeBusType == 7 &&
+                string.Equals(selected.InterfacePath, current.InterfacePath, StringComparison.OrdinalIgnoreCase) &&
+                selected.DiskNumber == current.DiskNumber && selected.CapacityBytes == current.CapacityBytes;
+            bool drifted = !string.Equals(selected.Model.Trim(), current.Model.Trim(), StringComparison.Ordinal) ||
+                !string.Equals(selected.Serial?.Trim(), current.Serial?.Trim(), StringComparison.Ordinal) ||
+                selected.Firmware != current.Firmware;
+            bool bridgeIdentity = !string.IsNullOrWhiteSpace(selected.BridgeChip) || UsbBridgeProbe.IsBridgeSerial(selected.Serial) || UsbBridgeProbe.IsBridgeSerial(current.Serial);
+            if (!stable || (drifted && !bridgeIdentity))
+                throw new AtaTransportException(AtaOutcome.IdentityMismatch, "USB device metadata changed; no SAT command sent. Reconnect and reopen PIXINIT.");
+            return;
+        }
         if (selected.ProtocolHeuristic)
         {
             if (current.Bus != selected.Bus || !string.Equals(selected.InterfacePath, current.InterfacePath, StringComparison.OrdinalIgnoreCase) ||
@@ -100,6 +113,26 @@ internal sealed class WindowsAtaTransport : IAtaTransport
         public AtaCommandResult Execute(AtaOperation operation, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
+            if (selected.Bus == ConnectionBus.Usb)
+            {
+                AtaCommandResult? best = null;
+                foreach (bool twelve in new[] { false, true })
+                foreach (bool buffered in new[] { true, false })
+                {
+                    var result = buffered ? ExecuteBufferedSat(operation, twelve, token) : ExecuteUsbSat(operation, twelve, token);
+                    best ??= result;
+                    if (result.Succeeded) return result;
+                    if (result.Outcome is AtaOutcome.AccessDenied or AtaOutcome.Disconnected or AtaOutcome.IdentityMismatch) return result;
+                    best = result;
+                }
+                if (selected.BridgeChip?.Contains("JMicron", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    var vendor = ExecuteJmicron(operation, token);
+                    if (vendor.Succeeded || vendor.Outcome is AtaOutcome.AccessDenied or AtaOutcome.Disconnected or AtaOutcome.IdentityMismatch) return vendor;
+                    best = vendor;
+                }
+                return best!;
+            }
             byte[] Query(uint code, byte[]? input, int length)
             {
                 token.ThrowIfCancellationRequested();
@@ -126,6 +159,107 @@ internal sealed class WindowsAtaTransport : IAtaTransport
             // Do not dispose/cancel buffers during the synchronous native call.
             return AtaCommandPolicy.ValidateResponse(operation, outputBuffer, returnedBytes, success, nativeError);
         }
+        private AtaCommandResult ExecuteUsbSat(AtaOperation operation, bool twelveByte, CancellationToken token)
+        {
+            Revalidate(token);
+            int size = Marshal.SizeOf<ScsiPassThroughDirect>();
+            const int senseLength = 32;
+            int transfer = AtaCommandPolicy.TransferLength(operation);
+            IntPtr allocation = Marshal.AllocHGlobal(512 + 4095);
+            IntPtr data = new((allocation.ToInt64() + 4095) & ~4095L);
+            IntPtr header = Marshal.AllocHGlobal(size + senseLength);
+            try
+            {
+                Marshal.Copy(new byte[512], 0, data, 512);
+                Marshal.Copy(new byte[size + senseLength], 0, header, size + senseLength);
+                var cdb = SatCommandPolicy.Request(operation, twelveByte);
+                var paddedCdb = new byte[16]; cdb.CopyTo(paddedCdb, 0);
+                var request = new ScsiPassThroughDirect
+                {
+                    Length = (ushort)size, CdbLength = (byte)cdb.Length,
+                    DataIn = transfer == 0 ? (byte)2 : (byte)1, DataTransferLength = (uint)transfer,
+                    TimeOutValue = 10, DataBuffer = transfer == 0 ? IntPtr.Zero : data,
+                    SenseInfoOffset = (uint)size, SenseInfoLength = senseLength, Cdb = paddedCdb
+                };
+                Marshal.StructureToPtr(request, header, false);
+                token.ThrowIfCancellationRequested();
+                Interlocked.Increment(ref dispatchCount);
+                bool success = StorageNative.DeviceIoControlPointer(handle, 0x0004D014, header, (uint)(size + senseLength),
+                    header, (uint)(size + senseLength), out uint returned, IntPtr.Zero);
+                int error = success ? 0 : Marshal.GetLastWin32Error();
+                token.ThrowIfCancellationRequested();
+                if (!success) return new(operation, error is 1 or 50 or 87 ? AtaOutcome.Unsupported : AtaCommandPolicy.ErrorOutcome(error),
+                    $"USB SAT({cdb.Length}): {AtaCommandPolicy.ErrorExplanation(error)}", [], [], DateTimeOffset.UtcNow, error);
+                if (returned < size || returned > size + senseLength)
+                    return AtaCommandResult.Missing(operation, AtaOutcome.InvalidResponse, "USB SAT response header length is invalid.");
+                var response = Marshal.PtrToStructure<ScsiPassThroughDirect>(header);
+                if (response.SenseInfoLength > senseLength || size + response.SenseInfoLength > returned)
+                    return AtaCommandResult.Missing(operation, AtaOutcome.InvalidResponse, "USB SAT sense length is invalid.");
+                var sense = new byte[response.SenseInfoLength]; Marshal.Copy(IntPtr.Add(header, size), sense, 0, sense.Length);
+                var payload = new byte[transfer]; Marshal.Copy(data, payload, 0, transfer);
+                return SatCommandPolicy.Validate(operation, response.ScsiStatus, payload, response.DataTransferLength, sense);
+            }
+            finally { Marshal.FreeHGlobal(header); Marshal.FreeHGlobal(allocation); }
+        }
+        private AtaCommandResult ExecuteBufferedSat(AtaOperation operation, bool twelveByte, CancellationToken token)
+        {
+            Revalidate(token);
+            var cdb = SatCommandPolicy.Request(operation, twelveByte);
+            int transfer = AtaCommandPolicy.TransferLength(operation);
+            const int header = 56, senseLength = 32, senseOffset = 56;
+            int dataOffset = senseOffset + senseLength;
+            var buffer = new byte[dataOffset + transfer];
+            BitConverter.GetBytes((ushort)header).CopyTo(buffer, 0);
+            buffer[6] = (byte)cdb.Length;
+            buffer[7] = senseLength;
+            buffer[8] = transfer == 0 ? (byte)2 : (byte)1;
+            BitConverter.GetBytes(transfer).CopyTo(buffer, 12);
+            BitConverter.GetBytes(10u).CopyTo(buffer, 16);
+            BitConverter.GetBytes((ulong)dataOffset).CopyTo(buffer, 24);
+            BitConverter.GetBytes(senseOffset).CopyTo(buffer, 32);
+            cdb.CopyTo(buffer.AsSpan(36));
+            token.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref dispatchCount);
+            bool success = StorageNative.DeviceIoControl(handle, 0x0004D004, buffer, (uint)buffer.Length, buffer, (uint)buffer.Length, out uint returned, IntPtr.Zero);
+            int error = success ? 0 : Marshal.GetLastWin32Error();
+            if (!success) return new(operation, error is 1 or 50 or 87 ? AtaOutcome.Unsupported : AtaCommandPolicy.ErrorOutcome(error),
+                $"USB SAT buffered 0x4D004 ({cdb.Length}): {AtaCommandPolicy.ErrorExplanation(error)}", [], [], DateTimeOffset.UtcNow, error);
+            if (returned < header) return AtaCommandResult.Missing(operation, AtaOutcome.InvalidResponse, "USB buffered SAT response was truncated.");
+            int senseCount = Math.Min((int)buffer[7], senseLength);
+            var sense = buffer.AsSpan(senseOffset, senseCount).ToArray();
+            var payload = buffer.AsSpan(dataOffset, transfer).ToArray();
+            uint moved = BitConverter.ToUInt32(buffer, 12);
+            return SatCommandPolicy.Validate(operation, buffer[2], payload, moved == 0 && transfer > 0 && payload.Any(b => b != 0) ? (uint)transfer : moved, sense);
+        }
+        private AtaCommandResult ExecuteJmicron(AtaOperation operation, CancellationToken token)
+        {
+            Revalidate(token);
+            var cdb = SatCommandPolicy.JmicronRead(operation);
+            int transfer = AtaCommandPolicy.TransferLength(operation);
+            const int header = 56, senseLength = 32, senseOffset = 56;
+            int dataOffset = senseOffset + senseLength;
+            var buffer = new byte[dataOffset + transfer];
+            BitConverter.GetBytes((ushort)header).CopyTo(buffer, 0);
+            buffer[6] = (byte)cdb.Length;
+            buffer[7] = senseLength;
+            buffer[8] = transfer == 0 ? (byte)2 : (byte)1;
+            BitConverter.GetBytes(transfer).CopyTo(buffer, 12);
+            BitConverter.GetBytes(10u).CopyTo(buffer, 16);
+            BitConverter.GetBytes((ulong)dataOffset).CopyTo(buffer, 24);
+            BitConverter.GetBytes(senseOffset).CopyTo(buffer, 32);
+            cdb.CopyTo(buffer.AsSpan(36));
+            token.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref dispatchCount);
+            bool success = StorageNative.DeviceIoControl(handle, 0x0004D004, buffer, (uint)buffer.Length, buffer, (uint)buffer.Length, out uint returned, IntPtr.Zero);
+            int error = success ? 0 : Marshal.GetLastWin32Error();
+            if (!success) return new(operation, AtaCommandPolicy.ErrorOutcome(error), $"JMicron 0xDF: {AtaCommandPolicy.ErrorExplanation(error)}", [], [], DateTimeOffset.UtcNow, error);
+            if (returned < header) return AtaCommandResult.Missing(operation, AtaOutcome.InvalidResponse, "JMicron 0xDF response was truncated.");
+            var sense = buffer.AsSpan(senseOffset, Math.Min((int)buffer[7], senseLength)).ToArray();
+            var payload = transfer == 0 ? [] : buffer.AsSpan(dataOffset, transfer).ToArray();
+            uint moved = BitConverter.ToUInt32(buffer, 12);
+            return SatCommandPolicy.Validate(operation, buffer[2], payload, moved == 0 && transfer > 0 && payload.Any(b => b != 0) ? (uint)transfer : moved, sense);
+        }
+
         public AtaCommandResult ExecuteSatSmartData(CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
@@ -138,9 +272,7 @@ internal sealed class WindowsAtaTransport : IAtaTransport
             IntPtr header = IntPtr.Zero;
             try
             {
-                var cdb = new byte[16];
-                cdb[0] = 0x85; cdb[1] = 0x08; cdb[2] = 0x2E; // ATA PASS-THROUGH(16), PIO data-in, 512-byte block.
-                cdb[4] = 0xD0; cdb[6] = 0x01; cdb[9] = 0x4F; cdb[11] = 0xC2; cdb[14] = 0xB0; // SMART READ DATA.
+                var cdb = SatCommandPolicy.Request(AtaOperation.SmartData, false);
                 var request = new ScsiPassThroughDirect { Length = (ushort)size, CdbLength = 16, DataIn = 1, DataTransferLength = 512, TimeOutValue = 10, DataBuffer = pin.AddrOfPinnedObject(), Cdb = cdb };
                 header = Marshal.AllocHGlobal(size); Marshal.StructureToPtr(request, header, false);
                 token.ThrowIfCancellationRequested();

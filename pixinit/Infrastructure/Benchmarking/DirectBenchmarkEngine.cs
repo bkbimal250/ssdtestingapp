@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using pixinit.Core.Benchmark;
+using pixinit.Infrastructure.Logging;
 
 namespace pixinit.Infrastructure.Benchmarking;
 
@@ -42,8 +43,9 @@ public sealed partial class FileBenchmarkEngine
                     forwarded.Report(new("Starting profile", job.Operation, 0, count * job.Profile.BlockBytes, 0));
                     var measured = await Task.Run(() => file.Measure(job.Profile, job.Operation, configuration.FileSizeBytes, count, forwarded, token, configuration.TimedMode ? configuration.DurationSeconds : 0));
                     bool invalid = DirectBenchmarkPolicy.Plausibility(target, [measured]).StartsWith("INVALID", StringComparison.Ordinal);
-                    passes.Add(new(job.Profile.Name, pass, job.Profile.QueuePerWorker, job.Profile.Workers, measured) { IncludeInAverage = !invalid, IsValidForDeviceAttribution = target.PhysicalIdentityReliable && !invalid });
-                    forwarded.Report(new("Profile finished", job.Operation, measured.BytesProcessed, count * job.Profile.BlockBytes, measured.MeasuredSeconds) { DurationSeconds = configuration.TimedMode ? configuration.DurationSeconds : 0, CurrentMBs = measured.MegabytesPerSecond }); jobsDone++;
+                    var completedPass = new BenchmarkPassResult(job.Profile.Name, pass, job.Profile.QueuePerWorker, job.Profile.Workers, measured) { IncludeInAverage = !invalid, IsValidForDeviceAttribution = target.PhysicalIdentityReliable && !invalid };
+                    passes.Add(completedPass);
+                    forwarded.Report(new("Profile finished", job.Operation, measured.BytesProcessed, count * job.Profile.BlockBytes, measured.MeasuredSeconds) { DurationSeconds = configuration.TimedMode ? configuration.DurationSeconds : 0, CurrentMBs = measured.MegabytesPerSecond, CompletedPass = completedPass }); jobsDone++;
                     if (measured.State != BenchmarkOperationState.Completed) { completion = measured.State == BenchmarkOperationState.Cancelled ? BenchmarkCompletion.Cancelled : BenchmarkCompletion.Failed; reason = measured.Error; break; }
                 }
                 if (completion != BenchmarkCompletion.Completed) break;
@@ -61,7 +63,7 @@ public sealed partial class FileBenchmarkEngine
         {
             long start = Stopwatch.GetTimestamp();
             try { await files.CleanupAsync(owned); cleaned = true; }
-            catch (Exception ex) { reason = $"{reason} Cleanup failed: {ex.Message}; owned path: {owned.FilePath}"; }
+            catch (Exception ex) { DiscoveryLog.Write("Direct benchmark owned-file cleanup failed", ex); reason = $"{reason} Cleanup failed: {ex.Message}; owned path: {owned.FilePath}"; }
             cleanupSeconds = Elapsed(start);
         }
         // The legacy summary fields use Q1T1 only; per-profile records retain every queue's measurements.

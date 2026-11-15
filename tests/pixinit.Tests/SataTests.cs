@@ -149,6 +149,19 @@ internal static partial class Program
         Check(result.Commands.All(c => c.Outcome == AtaOutcome.AccessDenied) && transport.Operations.Count == 0, "Access-denied open reports outcomes without ATA commands");
         transport = new() { CommandError = AtaOutcome.Disconnected }; result = await new WindowsSataDiagnosticsProvider(transport).ReadAsync(SyntheticSata(), default);
         Check(result.Identity is null && result.Commands[0].Outcome == AtaOutcome.Disconnected, "Device removal prevents publishing an identity");
+        var raid = SyntheticSata() with { Bus = ConnectionBus.Raid, NativeBusType = 8, ProtocolHeuristic = true };
+        var wmiSmart = SyntheticSmart();
+        wmiSmart[2] = 241;
+        const ulong writtenLbas = 20_000_000_000;
+        for (int i = 0; i < 6; i++) wmiSmart[7 + i] = (byte)(writtenLbas >> (8 * i));
+        Checksum(wmiSmart);
+        transport = new() { CommandError = AtaOutcome.Unsupported };
+        result = await new WindowsSataDiagnosticsProvider(transport, (_, _) => wmiSmart).ReadAsync(raid, default);
+        Check(result.Identity is null && result.Tbw?.WrittenTB is null && result.Attributes.Any(a => a.Id == 241) && result.Commands.Single(c => c.Operation == AtaOperation.SmartData).Succeeded,
+            "Exactly matched WMI preserves raw SATA attributes without guessing host-write units");
+        result = await new WindowsSataDiagnosticsProvider(transport, (_, _) => new byte[512]).ReadAsync(raid, default);
+        Check(result.Tbw?.WrittenTB is null && result.Commands.All(c => !c.Succeeded),
+            "Invalid RAID WMI SMART data cannot fabricate a host-write reading");
         transport = new(); provider = new(transport);
         bool refusedNvme = false, refusedUnknown = false;
         try { await provider.ReadAsync(Drive("nvme", StorageProtocol.Nvme), default); } catch (AtaTransportException) { refusedNvme = true; }

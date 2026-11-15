@@ -37,9 +37,9 @@ public sealed class WindowsNvmeDiagnosticsProvider : INvmeDiagnosticsProvider
             Read(NvmeOperation.Health, "Reading SMART/Health information", b => health = NvmeHealthParser.Parse(b));
             if (responses[^1].Operation == NvmeOperation.Health)
                 responses[^1] = responses[^1] with { Scope = "Selected physical NVMe device through Windows; controller versus namespace scope is uncertain because no numeric NSID was established" };
-            // Microsoft adapter log queries require 512-byte chunks, i.e. eight 64-byte entries.
-            if (controller?.ErrorSlots >= 8) Read(NvmeOperation.Errors, "Reading bounded error information", b => errors = NvmeErrorParser.Parse(b, 8));
-            else Missing(NvmeOperation.Errors, "Controller capacity for eight entries not established; Windows adapter query requires a 512-byte chunk. No over-capability request sent.");
+            // Microsoft's adapter returns error-log pages in 512-byte chunks. A controller that
+            // reports fewer than eight slots still gets one bounded read; unused entries stay empty.
+            Read(NvmeOperation.Errors, "Reading bounded error information", b => errors = NvmeErrorParser.Parse(b, 8));
         }
         token.ThrowIfCancellationRequested(); progress?.Report("Preparing NVMe results");
         var mapped = NvmeResultMapper.Map(device, controller, health, errors, responses);

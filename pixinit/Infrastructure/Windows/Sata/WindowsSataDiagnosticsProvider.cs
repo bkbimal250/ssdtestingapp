@@ -12,8 +12,13 @@ namespace pixinit.Infrastructure.Windows.Sata;
 public sealed class WindowsSataDiagnosticsProvider : ISataDiagnosticsProvider
 {
     private readonly IAtaTransport transport;
+    private readonly Func<StorageDevice, CancellationToken, byte[]?> readWmiSmart;
     public WindowsSataDiagnosticsProvider() : this(new WindowsAtaTransport()) { }
-    internal WindowsSataDiagnosticsProvider(IAtaTransport transport) => this.transport = transport;
+    internal WindowsSataDiagnosticsProvider(IAtaTransport transport, Func<StorageDevice, CancellationToken, byte[]?>? readWmiSmart = null)
+    {
+        this.transport = transport;
+        this.readWmiSmart = readWmiSmart ?? RaidDisplayFallback.ReadFailurePredictSmart;
+    }
     public Task<SataDiagnostics> ReadAsync(StorageDevice device, CancellationToken cancellationToken, IProgress<string>? progress = null) =>
         Task.FromResult(Read(device, cancellationToken, progress));
 
@@ -51,34 +56,35 @@ public sealed class WindowsSataDiagnosticsProvider : ISataDiagnosticsProvider
             if (identity is not null)
             {
                 if (!string.IsNullOrWhiteSpace(identity.Model) && !string.Equals(identity.Model.Trim(), device.Model.Trim(), StringComparison.Ordinal)) notes.Add("ATA model differs from Windows discovery; both sources retained.");
-                if (!string.IsNullOrWhiteSpace(identity.Serial) && !string.IsNullOrWhiteSpace(device.Serial) && identity.Serial.Trim() != device.Serial.Trim()) notes.Add("ATA serial differs from Windows discovery; both sources retained; further commands withheld.");
+                if (!string.IsNullOrWhiteSpace(identity.Serial) && !string.IsNullOrWhiteSpace(device.Serial) && identity.Serial.Trim() != device.Serial.Trim())
+                    notes.Add(device.Bus == ConnectionBus.Usb
+                        ? "USB enclosure serial and ATA drive serial are distinct; both retained. USB path metadata is revalidated for each command."
+                        : "ATA serial differs from Windows discovery; both sources retained; further commands withheld.");
                 if (identity.Firmware is not null && device.Firmware is not null && identity.Firmware != device.Firmware) notes.Add("ATA firmware differs from Windows discovery; both sources retained.");
                 if (identity.CapacityBytes is not null && device.CapacityBytes is not null && identity.CapacityBytes != device.CapacityBytes) notes.Add("ATA byte capacity differs from Windows discovery; neither source overwrites the other.");
             }
+            bool usbBridge = device.Bus == ConnectionBus.Usb;
             if (identity is null || notes.Any(n => n.Contains("serial differs")))
                 Skip(AtaOutcome.NotQueried, "SMART not queried because ATA identity could not be validated.");
-            else if (identity.SmartSupported != true)
+            else if (!usbBridge && identity.SmartSupported != true)
                 Skip(identity.SmartSupported == false ? AtaOutcome.Unsupported : AtaOutcome.NotQueried,
                     identity.SmartSupported == false ? "SMART is not supported according to valid IDENTIFY data." : "SMART support validity not established; commands withheld.");
-            else if (identity.SmartEnabled != true)
+            else if (!usbBridge && identity.SmartEnabled != true)
                 Skip(identity.SmartEnabled == false ? AtaOutcome.SmartDisabled : AtaOutcome.NotQueried,
                     identity.SmartEnabled == false ? "SMART disabled. PIXINIT will not enable it." : "SMART enabled state unknown; commands withheld.");
             else
             {
+                if (usbBridge && identity.SmartEnabled != true)
+                    notes.Add("USB bridge IDENTIFY did not confirm SMART enabled. Read-only SMART commands are still attempted; SMART is not enabled by PIXINIT.");
                 var data = Run(AtaOperation.SmartData, "Reading SMART attributes");
                 var limits = Run(AtaOperation.SmartThresholds, "Reading thresholds");
                 Parse(limits, () => thresholds = SmartThresholdParser.Parse(limits.Payload));
                 Parse(data, () => attributes = SmartDataParser.Parse(data.Payload, thresholds));
                 int dataIndex = commands.IndexOf(data);
                 double? usageUsedPercent = ReadMountedVolumeUsedPercent(device);
-                bool CounterLooksZero(SmartAttributes? source, byte id) => RawCounter(source, id) is not ulong raw || raw * 512d / 1e12 < 0.0005;
-                bool needsCounterFallback = attributes is null || CounterLooksZero(attributes, 241) || CounterLooksZero(attributes, 242);
-                if (needsCounterFallback && device.Protocol == StorageProtocol.Sata)
+                // A parsed page with zero host counters is not final. SAT, WMI and CSMI can still hold the real values.
+                if (device.Protocol == StorageProtocol.Sata && ShouldProbeHostCounters(device, attributes))
                 {
-                    int CounterScore(SmartAttributes? source) =>
-                        (RawCounter(source, 241) is ulong writes && (usageUsedPercent is not > 10 || writes * 512d / 1e12 >= 0.0005) ? 1 : 0) +
-                        (RawCounter(source, 242) is ulong reads && (usageUsedPercent is not > 10 || reads * 512d / 1e12 >= 0.0005) ? 1 : 0);
-                    bool HasUsefulCounters(SmartAttributes? source) => CounterScore(source) > 0;
                     void Accept(AtaCommandResult candidate, string source)
                     {
                         if (!candidate.Succeeded) return;
@@ -86,50 +92,47 @@ public sealed class WindowsSataDiagnosticsProvider : ISataDiagnosticsProvider
                         {
                             var parsed = SmartDataParser.Parse(candidate.Payload, thresholds);
                             LogCounterBytes(device, source, parsed, usageUsedPercent);
-                            if (attributes is null || CounterScore(parsed) > CounterScore(attributes))
+                            if (!HasPositiveHostCounter(attributes) && (attributes is null || HasPositiveHostCounter(parsed)))
                             {
                                 attributes = parsed;
                                 commands[dataIndex] = candidate;
                             }
                         }
-                        catch (InvalidDataException ex) { DiscoveryLog.Write($"RAID SMART fallback parse failed: disk={device.DiskNumber}; serial ending={device.SerialSuffix}; fallback source={source}; SMART passthrough result=invalid data; error code=none", ex); }
+                        catch (InvalidDataException ex) { DiscoveryLog.Write($"SMART fallback parse failed: disk={device.DiskNumber}; serial ending={device.SerialSuffix}; fallback source={source}; SMART passthrough result=invalid data; error code=none", ex); }
                     }
 
                     // Probe in order: SCSI SAT, Windows WMI snapshot, then documented Windows
-                    // protocol-specific query. A zero counter on a substantially used volume is
-                    // treated as blocked/unavailable and does not stop the fallback chain.
+                    // protocol-specific query. Stop once a valid SMART response is available.
                     var satResult = session.ExecuteSatSmartData(token);
-                    DiscoveryLog.Write($"RAID SAT SMART fallback: disk={device.DiskNumber}; serial ending={SerialEnding(device.Serial)}; BusType={device.NativeBusType?.ToString() ?? device.Bus.ToString()}; MediaType={device.Media}; IsHeuristic={device.ProtocolHeuristic}; Protocol attempted=SCSI SAT ATA SMART READ DATA (0x85/0xD0); SMART passthrough result={satResult.Outcome}; error code={(satResult.Win32Error is int satError ? $"0x{satError:X8}" : "none")}; {satResult.Explanation}");
+                    DiscoveryLog.Write($"Probe b SCSI SAT: disk={device.DiskNumber}; serial ending={SerialEnding(device.Serial)}; BusType={device.NativeBusType?.ToString() ?? device.Bus.ToString()}; MediaType={device.Media}; IsHeuristic={device.ProtocolHeuristic}; Protocol attempted=SCSI SAT ATA SMART READ DATA (0x85/0xD0); SMART passthrough result={satResult.Outcome}; error code={(satResult.Win32Error is int satError ? $"0x{satError:X8}" : "none")}; {satResult.Explanation}");
                     Accept(satResult, "SCSI SAT");
-                    if (!HasUsefulCounters(attributes) || usageUsedPercent is > 10 && (CounterLooksZero(attributes, 241) || CounterLooksZero(attributes, 242)))
+                    if (attributes is null)
                     {
-                        byte[]? wmiData = RaidDisplayFallback.ReadFailurePredictSmart(device, token);
+                        byte[]? wmiData = readWmiSmart(device, token);
+                        DiscoveryLog.Write($"Probe c MSStorageDriver_FailurePredictData: disk={device.DiskNumber}; serial ending={SerialEnding(device.Serial)}; result={(wmiData is null ? "unmatched" : "512-byte VendorSpecific, attributes at offset 2")}.");
                         if (wmiData is not null) Accept(new(AtaOperation.SmartData, AtaOutcome.Success,
-                            "SMART attributes returned by MSStorageDriver_FailurePredictData via Windows WMI.", wmiData, [], DateTimeOffset.UtcNow), "MSStorageDriver_FailurePredictData");
+                            "SMART attributes returned by MSStorageDriver_FailurePredictData via Windows WMI. VendorSpecific attributes start at offset 2, 12 bytes each.", wmiData, [], DateTimeOffset.UtcNow), "MSStorageDriver_FailurePredictData");
                     }
-                    if (!HasUsefulCounters(attributes) || usageUsedPercent is > 10 && (CounterLooksZero(attributes, 241) || CounterLooksZero(attributes, 242)))
+                    if (attributes is null)
                     {
                         var protocolResult = session.ExecuteProtocolSpecificSmartData(token);
                         DiscoveryLog.Write($"RAID ATA protocol SMART fallback: disk={device.DiskNumber}; serial ending={SerialEnding(device.Serial)}; BusType={device.NativeBusType?.ToString() ?? device.Bus.ToString()}; MediaType={device.Media}; IsHeuristic={device.ProtocolHeuristic}; Protocol attempted=IOCTL_STORAGE_QUERY_PROPERTY StorageDeviceProtocolSpecificProperty ATA LogPage SMART READ DATA; SMART passthrough result={protocolResult.Outcome}; error code={(protocolResult.Win32Error is int protocolError ? $"0x{protocolError:X8}" : "none")}; {protocolResult.Explanation}");
                         Accept(protocolResult, "IOCTL_STORAGE_QUERY_PROPERTY ATA LogPage");
                     }
-                    if (!HasUsefulCounters(attributes) || usageUsedPercent is > 10 && (CounterLooksZero(attributes, 241) || CounterLooksZero(attributes, 242)))
+                    if (!HasPositiveHostCounter(attributes))
                     {
-                        // Intel RST miniport SMART IOCTLs are vendor-private; no control code or
-                        // request buffer contract is available in the target OS interface. Do not
-                        // send a guessed request to a storage controller.
-                        DiscoveryLog.Write($"RAID Intel RST SMART fallback: disk={device.DiskNumber}; serial ending={SerialEnding(device.Serial)}; BusType={device.NativeBusType?.ToString() ?? device.Bus.ToString()}; MediaType={device.Media}; IsHeuristic={device.ProtocolHeuristic}; Protocol attempted=IOCTL_SCSI_MINIPORT IntelRst private request; SMART passthrough result=not dispatched; error code=none; vendor control code/buffer contract unavailable.");
-                        RaidDisplayFallback.LogPhysicalDiskHealth(device);
-                        notes.Add($"Host writes/reads unavailable through the available read-only SATA paths. Windows Storage health status: {device.WindowsHealthStatus ?? "unavailable"}.");
+                        byte[]? csmi = IntelRstSmart.TryReadSmart(device, token);
+                        if (csmi is not null) Accept(new(AtaOperation.SmartData, AtaOutcome.Success,
+                            "SMART READ DATA returned by published CSMI STP passthrough on IOCTL_SCSI_MINIPORT.", csmi, [], DateTimeOffset.UtcNow), "IOCTL_SCSI_MINIPORT CSMI");
+                        else DiscoveryLog.Write($"Probe d IOCTL_SCSI_MINIPORT: disk={device.DiskNumber}; serial ending={SerialEnding(device.Serial)}; SMART passthrough result=unavailable.");
+                        if (!HasPositiveHostCounter(attributes))
+                        {
+                            RaidDisplayFallback.LogPhysicalDiskHealth(device);
+                            notes.Add(device.Bus == ConnectionBus.Raid
+                                ? "Unavailable - RAID blocks host counters. ATA, SAT, WMI and CSMI did not return a non-zero SMART 241/242 value."
+                                : $"Host writes/reads stayed unavailable. Windows Storage health status: {device.WindowsHealthStatus ?? "unavailable"}.");
+                        }
                     }
-                    ulong? finalWrites = RawCounter(attributes, 241), finalReads = RawCounter(attributes, 242);
-                    if (usageUsedPercent is > 10 && (finalWrites is ulong fw0 && fw0 * 512d / 1e12 < 0.0005 || finalReads is ulong fr0 && fr0 * 512d / 1e12 < 0.0005))
-                    {
-                        if (finalWrites is ulong writeCounter && writeCounter * 512d / 1e12 < 0.0005) finalWrites = null;
-                        if (finalReads is ulong readCounter && readCounter * 512d / 1e12 < 0.0005) finalReads = null;
-                    }
-                    var endurance = ManufacturerEnduranceCatalog.EstimateSata(device);
-                    DiscoveryLog.Write($"SATA host-counter final: disk={device.DiskNumber}; serial ending={SerialEnding(device.Serial)}; usage={(usageUsedPercent is double used ? $"{used:F1}%" : "unavailable")}; SMART 241 raw={(finalWrites is ulong w ? w.ToString("X12") : "unavailable")}; SMART 242 raw={(finalReads is ulong r ? r.ToString("X12") : "unavailable")}; Host writes TB={(finalWrites is ulong fw ? (fw * 512d / 1e12).ToString("F6", System.Globalization.CultureInfo.InvariantCulture) : "unavailable")}; Host reads TB={(finalReads is ulong fr ? (fr * 512d / 1e12).ToString("F6", System.Globalization.CultureInfo.InvariantCulture) : "unavailable")}; TBW reference={(endurance is { } rating ? $"{rating.RatedTB:F0} TB; source={rating.Source}" : "none")}; SMART passthrough result={(finalWrites is null ? "blocked/unavailable" : "counter returned")}; error code=none.");
                 }
                 var status = Run(AtaOperation.SmartStatus, "Reading SMART status");
                 if (status.Succeeded && SmartReturnStatus.Interpret(status) is null)
@@ -137,10 +140,51 @@ public sealed class WindowsSataDiagnosticsProvider : ISataDiagnosticsProvider
             }
         }
         catch (AtaTransportException ex) { Skip(ex.Outcome, ex.Message); DiscoveryLog.Write("SATA transport stopped", ex); }
+        if (device.Bus == ConnectionBus.Raid && device.ProtocolHeuristic && attributes is null &&
+            !notes.Any(note => note.Contains("serial differs", StringComparison.Ordinal)))
+        {
+            token.ThrowIfCancellationRequested();
+            byte[]? snapshot = readWmiSmart(device, token);
+            if (snapshot is not null)
+            {
+                try
+                {
+                    var parsed = SmartDataParser.Parse(snapshot, null);
+                    attributes = parsed;
+                    commands.RemoveAll(command => command.Operation == AtaOperation.SmartData && !command.Succeeded);
+                    commands.Add(new(AtaOperation.SmartData, AtaOutcome.Success,
+                        "SMART snapshot from an exactly matched Windows WMI instance; ATA identity remains unavailable.",
+                        snapshot, [], DateTimeOffset.UtcNow));
+                    LogCounterBytes(device, "MSStorageDriver_FailurePredictData without ATA Identify", parsed, ReadMountedVolumeUsedPercent(device));
+                    notes.Add("ATA Identify unavailable; an independently matched Windows SMART snapshot supplied raw attributes.");
+                }
+                catch (InvalidDataException ex)
+                {
+                    DiscoveryLog.Write($"RAID WMI SMART snapshot invalid: disk={device.DiskNumber}; serial ending={device.SerialSuffix}; fallback source=MSStorageDriver_FailurePredictData", ex);
+                }
+            }
+        }
         token.ThrowIfCancellationRequested(); progress?.Report("Preparing results");
-        var mapped = SataResultMapper.Map(device, identity, attributes, thresholds, commands, notes, ReadMountedVolumeUsedPercent(device));
+        double? usage = ReadMountedVolumeUsedPercent(device);
+        var mapped = SataResultMapper.Map(device, identity, attributes, thresholds, commands, notes, usage);
+        if (mapped.Tbw?.WrittenTB is 0d && (device.Bus == ConnectionBus.Raid || usage is > 1))
+        {
+            string why = device.Bus == ConnectionBus.Raid
+                ? "Unavailable - RAID blocks host counters. SMART 241 stayed zero after ATA, SAT, WMI and Intel RST."
+                : "Unavailable - SMART 241 raw is zero after ATA, SAT and WMI. Host writes are not shown as 0.0 TB.";
+            mapped = mapped with
+            {
+                Tbw = mapped.Tbw with { WrittenTB = null, InterpretationVerified = false, Source = why },
+                HostReadsTB = mapped.HostReadsTB is 0d ? null : mapped.HostReadsTB,
+                Discrepancies = string.Join("\n", new[] { mapped.Discrepancies, why }.Where(line => !string.IsNullOrWhiteSpace(line)))
+            };
+        }
+        DiscoveryLog.Write($"SATA host-counter result: disk={device.DiskNumber}; serial ending={device.SerialSuffix}; BusType={device.NativeBusType?.ToString() ?? device.Bus.ToString()}; MediaType={device.Media}; IsHeuristic={device.ProtocolHeuristic}; SMART 241 raw bytes={RawBytes(attributes, 241)}; SMART 242 raw bytes={RawBytes(attributes, 242)}; host writes TB={(mapped.Tbw?.WrittenTB is double writes ? writes.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) : "unavailable")}; host reads TB={(mapped.HostReadsTB is double reads ? reads.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) : "unavailable")}; TBW reference={(mapped.Tbw is { RatedTB: > 0 } finalRating ? $"{finalRating.RatedTB:F0} TB, unverified" : "none")}; source={commands.FirstOrDefault(command => command.Operation == AtaOperation.SmartData && command.Succeeded)?.Explanation ?? "unavailable"}.");
         var assessment = AssessmentPolicies.Assess(mapped);
-        return mapped with { Assessment = assessment, Summary = $"Read sequence finished · {commands.Count(c => c.Succeeded)}/{commands.Count} valid command responses · Assessment {assessment.StateDisplay} · Checklist {assessment.ChecklistDisplay}" };
+        string summary = $"Read sequence finished · {commands.Count(c => c.Succeeded)}/{commands.Count} valid command responses · Assessment {assessment.StateDisplay} · Checklist {assessment.ChecklistDisplay}";
+        if (device.Bus == ConnectionBus.Usb && attributes is null)
+            summary = "USB SATA diagnostics unavailable · " + (commands.FirstOrDefault(c => !c.Succeeded)?.Explanation ?? "Bridge did not expose SMART data.") + " · Refresh to retry.";
+        return mapped with { Assessment = assessment, Summary = summary };
 
         void Skip(AtaOutcome outcome, string reason)
         {
@@ -149,6 +193,16 @@ public sealed class WindowsSataDiagnosticsProvider : ISataDiagnosticsProvider
         }
     }
 
+    private static bool HasPositiveHostCounter(SmartAttributes? attributes) =>
+        SataHostCounters.Decode(attributes, attributes is not null) is { WritesTB: > 0 } or { ReadsTB: > 0 };
+    private static bool ShouldProbeHostCounters(StorageDevice device, SmartAttributes? attributes)
+    {
+        if (device.Bus == ConnectionBus.Usb) return false;
+        if (attributes is null) return true;
+        var decoded = SataHostCounters.Decode(attributes, true);
+        if (decoded is null) return device.Bus == ConnectionBus.Raid || device.ProtocolHeuristic;
+        return decoded.WritesTB is not > 0 && decoded.ReadsTB is not > 0;
+    }
     private static ulong? RawCounter(SmartAttributes? attributes, byte id)
     {
         var rows = attributes?.Entries.Where(row => row.Id == id).ToArray();
@@ -156,6 +210,11 @@ public sealed class WindowsSataDiagnosticsProvider : ISataDiagnosticsProvider
         ulong raw = 0;
         for (int i = 0; i < 6; i++) raw |= (ulong)rows[0].RawBytes[i] << (8 * i);
         return raw;
+    }
+    private static string RawBytes(SmartAttributes? attributes, byte id)
+    {
+        var rows = attributes?.Entries.Where(row => row.Id == id).ToArray();
+        return rows?.Length == 1 && rows[0].RawBytes.Length == 6 ? Convert.ToHexString(rows[0].RawBytes) : "unavailable";
     }
     private static string SerialEnding(string? serial)
     {

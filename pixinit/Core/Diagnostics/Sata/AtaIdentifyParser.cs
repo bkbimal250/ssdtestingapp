@@ -68,9 +68,12 @@ public static class AtaIdentifyParser
         string form = W(168) switch { 1 => "5.25 inch", 2 => "3.5 inch", 3 => "2.5 inch", 4 => "1.8 inch", 5 => "Less than 1.8 inch", _ => "Unspecified / reserved" };
         var versions = W(80) is 0 or 0xFFFF ? "Not reported" : string.Join(", ", Enumerable.Range(1, 10).Where(b => (W(80) & (1 << b)) != 0).Select(b => b <= 7 ? $"ATA/ATAPI-{b}" : b == 8 ? "ATA8-ACS" : $"ACS-{b - 7}"));
         ushort? security = (W(128) & 0xFEC0) == 0 ? W(128) : null;
-        return new(model, serial, firmware, lba, lba48, sectors, capacity, logical, physical, smart, enabled, trim, ncq, depth,
+        bool? devSleep = sataValid && (W(78) & 0x8000) == 0 ? (W(78) & 0x100) != 0 : null;
+        bool? gpl = Valid(W(84)) ? (W(84) & 0x20) != 0 : null;
+        return new AtaIdentity(model, serial, firmware, lba, lba48, sectors, capacity, logical, physical, smart, enabled, trim, ncq, depth,
             rotation, form, versions, sataValid ? W(76) : null, security,
-            checksum ? "IDENTIFY checksum verified" : "IDENTIFY checksum not supplied (no A5h signature)", notes);
+            checksum ? "IDENTIFY checksum verified" : "IDENTIFY checksum not supplied (no A5h signature)", notes)
+        { DevSleepSupported = devSleep, GplSupported = gpl };
     }
 }
 

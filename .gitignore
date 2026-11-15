@@ -29,6 +29,8 @@ installer/
 *.dll
 *.pyd
 *.pdb
+*.pfx
+*.p12
 *.nupkg
 *.snupkg
 *.zip

@@ -16,7 +16,11 @@ public sealed record AtaIdentity(string? Model, string? Serial, string? Firmware
     uint? LogicalSectorBytes, ulong? PhysicalSectorBytes, bool? SmartSupported, bool? SmartEnabled,
     bool? TrimSupported, bool? NcqSupported, int? QueueDepth, ushort? RotationRate,
     string FormFactor, string AtaVersions, ushort? SataCapabilities, ushort? SecurityStatus,
-    string Integrity, IReadOnlyList<string> Limitations);
+    string Integrity, IReadOnlyList<string> Limitations)
+{
+    public bool? DevSleepSupported { get; init; }
+    public bool? GplSupported { get; init; }
+}
 
 public sealed record SmartThreshold(byte Id, byte Value, int Slot);
 public sealed record SmartThresholds(IReadOnlyList<SmartThreshold> Entries, IReadOnlyList<string> Warnings);

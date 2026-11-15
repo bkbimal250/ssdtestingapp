@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using pixinit.Core.Benchmark;
+using pixinit.Infrastructure.Logging;
 
 namespace pixinit.Infrastructure.Benchmarking;
 
@@ -75,7 +76,7 @@ public sealed partial class FileBenchmarkEngine
         {
             long start = Stopwatch.GetTimestamp();
             try { await files.CleanupAsync(owned); cleanup = true; }
-            catch (Exception ex) { reason = string.IsNullOrWhiteSpace(reason) ? $"Cleanup failed; owned file remains at {owned.FilePath}: {ex.Message}" : $"{reason} Cleanup failed; owned file remains at {owned.FilePath}: {ex.Message}"; }
+            catch (Exception ex) { DiscoveryLog.Write("Benchmark owned-file cleanup failed", ex); reason = string.IsNullOrWhiteSpace(reason) ? $"Cleanup failed; owned file remains at {owned.FilePath}: {ex.Message}" : $"{reason} Cleanup failed; owned file remains at {owned.FilePath}: {ex.Message}"; }
             cleanupSeconds = Elapsed(start);
         }
         return new(id, started, DateTimeOffset.UtcNow, BenchmarkPolicy.Version, typeof(FileBenchmarkEngine).Assembly.GetName().Version?.ToString() ?? "Unavailable",

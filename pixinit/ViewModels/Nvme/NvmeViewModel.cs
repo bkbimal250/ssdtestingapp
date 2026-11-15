@@ -1,6 +1,7 @@
 using pixinit.Core.Diagnostics.Nvme;
 using pixinit.Core.Diagnostics.Common;
 using pixinit.ViewModels.Shared;
+using System.Globalization;
 using System.Numerics;
 
 namespace pixinit.ViewModels.Nvme;
@@ -45,7 +46,7 @@ public sealed partial class NvmeViewModel : DeviceViewModel
     public string Errors => result?.ErrorDetails ?? "Media errors, unsafe shutdowns and error log entries are unavailable.";
     public string IdentityStatus => result?.IdentitySummary ?? "Identity comparison not queried";
     public string Scope => result?.Responses.FirstOrDefault(r => r.Operation == NvmeOperation.Health)?.Scope ?? "SMART request scope unavailable";
-    public string HostReads => result?.Health is null && Device?.ProtocolHeuristic == true ? "N/A - RAID controller blocks SMART passthrough - data from Windows Storage API" : FriendlyData(0);
+    public string HostReads => result?.Health is null && Device is { ProtocolHeuristic: true, Bus: Core.Devices.ConnectionBus.Raid } ? "N/A - RAID controller blocks SMART passthrough - data from Windows Storage API" : FriendlyData(0);
     public string HostWrites => FriendlyData(1);
     public string PowerOnHours => Counter(6, "hours");
     public string PowerCycles => Counter(5, "cycles");
@@ -79,9 +80,17 @@ public sealed partial class NvmeViewModel : DeviceViewModel
     private string FriendlyData(int index)
     {
         if (result?.Health is not { } h || h.Counters.Count <= index || h.Counters[index].IsZero) return "Unavailable";
-        BigInteger bytes = NvmeHealthParser.DataUnitBytes(h.Counters[index]); double tebibytes = (double)bytes / 1099511627776d;
-        return $"{tebibytes:N2} TiB";
+        decimal bytes = (decimal)NvmeHealthParser.DataUnitBytes(h.Counters[index]);
+        decimal crystalGb = decimal.Round(bytes / 1073741824m, 0, MidpointRounding.AwayFromZero);
+        decimal tib = crystalGb * 1000000000m / 1099511627776m;
+        return string.Create(CultureInfo.InvariantCulture, $"{crystalGb:0} GB / {tib:0.00} TiB");
     }
+    public new string Serial => result?.Controller?.Serial is { Length: > 0 } serial ? serial : base.Serial;
+    public override string HealthLine => result?.Health is { } health ? $"{(health.Warning == 0 ? "Good" : "Caution")} {Math.Max(0, 100 - health.Used)}%" : "";
+    public override string StandardLine => result?.Controller is { Version: not (0 or uint.MaxValue) } controller
+        ? $"Standard NVM Express {controller.Version >> 16}.{(controller.Version >> 8) & 255}{((controller.Version & 255) == 0 ? "" : "." + (controller.Version & 255))}" : "";
+    public override string FeaturesLine => result?.Controller?.Features is { Length: > 0 } features ? "Features " + features : "";
+    public override string SensorsLine => result?.Health is not { } health ? "" : string.Join(" · ", health.RawSensorKelvin.Select((kelvin, index) => kelvin is 0 or 65535 ? null : $"Sensor {index + 1} {kelvin - 273}C").Where(line => line is not null));
     private static string Availability(Core.Diagnostics.Common.Availability? value) => value switch
     { Core.Diagnostics.Common.Availability.AccessDenied => "Access denied", Core.Diagnostics.Common.Availability.Unsupported => "Unsupported", Core.Diagnostics.Common.Availability.Error => "Error", _ => "Unavailable" };
     private static string Outcome(NvmeOutcome outcome) => outcome switch
@@ -110,7 +119,7 @@ public sealed partial class NvmeViewModel : DeviceViewModel
     private void NotifyResults()
     {
         NotifyDetailRows();
-        foreach (var name in new[] { nameof(FirstPageWarnings), nameof(EntireSsdInfo), nameof(Result), nameof(SmartReadings), nameof(WarningSummary), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(WarningDetails), nameof(SpareThreshold), nameof(RawDetails), nameof(CriticalWarning), nameof(CriticalWarningRaw), nameof(Temperature), nameof(AvailableSpare), nameof(PercentageUsed), nameof(Usage), nameof(Thermal), nameof(ThermalSummary), nameof(Controller), nameof(Errors), nameof(IdentityStatus), nameof(Scope), nameof(HostReads), nameof(HostWrites), nameof(PowerOnHours), nameof(PowerCycles), nameof(UnsafeShutdowns), nameof(MediaErrors), nameof(QuerySummary), nameof(LimitedSmartFallback), nameof(ShowWindowsFallbackIdentity), nameof(LimitedDataSummary), nameof(LimitedFallbackRows) }) Changed(name);
+        foreach (var name in new[] { nameof(FirstPageWarnings), nameof(EntireSsdInfo), nameof(Result), nameof(SmartReadings), nameof(WarningSummary), nameof(Assessment), nameof(Coverage), nameof(ObservedLocal), nameof(AssessmentDetails), nameof(WarningDetails), nameof(SpareThreshold), nameof(RawDetails), nameof(CriticalWarning), nameof(CriticalWarningRaw), nameof(Temperature), nameof(AvailableSpare), nameof(PercentageUsed), nameof(Usage), nameof(Thermal), nameof(ThermalSummary), nameof(Controller), nameof(Errors), nameof(IdentityStatus), nameof(Scope), nameof(HostReads), nameof(HostWrites), nameof(PowerOnHours), nameof(PowerCycles), nameof(UnsafeShutdowns), nameof(MediaErrors), nameof(QuerySummary), nameof(LimitedSmartFallback), nameof(ShowWindowsFallbackIdentity), nameof(LimitedDataSummary), nameof(LimitedFallbackRows), nameof(Serial), nameof(HealthLine), nameof(StandardLine), nameof(FeaturesLine), nameof(SensorsLine), nameof(CrystalSummary) }) Changed(name);
     }
 }
 

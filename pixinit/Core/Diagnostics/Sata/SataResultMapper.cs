@@ -37,23 +37,20 @@ public static class SataResultMapper
         string temperatureSource = device.Bus == ConnectionBus.Raid ? "SMART 194 via RAID fallback - unverified units" : "SMART 194 raw low byte; conventional encoding, vendor interpretation unverified";
         var temp = temp194 is double t ? new Metric<double>(t, "°C", Availability.Available,
             temperatureSource, dataResponse!.ObservedAt) : Metric<double>.Missing("°C");
-        var written = Raw(241);
-        var read = Raw(242);
-        bool suspiciousUsage = usageUsedPercent is > 10;
-        if (suspiciousUsage && written is ulong writtenRaw && writtenRaw * 512d / 1e12 < 0.0005) written = null;
-        if (suspiciousUsage && read is ulong readRaw && readRaw * 512d / 1e12 < 0.0005) read = null;
+        var hostCounters = SataHostCounters.Decode(attributes, dataResponse is not null);
         var endurance = ManufacturerEnduranceCatalog.EstimateSata(device);
         string enduranceText = endurance is { } estimate
-            ? $"{estimate.Source}. SATA SMART units remain unverified."
-            : "Unavailable - no capacity-class TBW estimate. SATA SMART units remain unverified.";
+            ? $"{estimate.Source}. {hostCounters?.Source ?? "SATA SMART host-counter units remain unverified."}"
+            : $"Unavailable - no capacity-class TBW estimate. {hostCounters?.Source ?? "SATA SMART host-counter units remain unverified."}";
         ata += $"\nPower-on hours (SMART 9 assumed LE48 hours): {Raw(9)?.ToString() ?? "Unavailable"}; vendor units unverified.";
         return new(device.Id, smart, temp, Metric<double>.Missing("%"), attributes?.Entries ?? [],
             enduranceText, ata,
             $"SATA capability word: {(identity?.SataCapabilities is ushort caps ? $"0x{caps:X4} (supported features only)" : "Unavailable")}\nNegotiated SATA speed: unavailable; maximum capability is not current speed.")
         {
-            Tbw = new(written is ulong lbas ? lbas * 512d / 1e12 : null, RatedTB: endurance?.RatedTB ?? 0, InterpretationVerified: false,
-                Source: written is null ? "SMART 241 unavailable or suspicious zero; RAID/controller passthrough did not provide a usable counter" : "SMART 241 assumed LE48 count of 512-byte LBAs; vendor encoding and units unverified"),
-            HostReadsTB = read is ulong readLbas ? readLbas * 512d / 1e12 : null,
+            Tbw = new(hostCounters?.WritesTB, RatedTB: endurance?.RatedTB ?? 0, InterpretationVerified: hostCounters is not null,
+                RatingVerified: endurance?.Verified ?? false,
+                Source: hostCounters?.Source ?? "Host-write total unavailable: no supported SMART counter layout"),
+            HostReadsTB = hostCounters?.ReadsTB,
             UsageUsedPercent = usageUsedPercent,
             PowerCycles = Raw(12),
             Thermal = ThermalInfo.FromMetric(temp, false),

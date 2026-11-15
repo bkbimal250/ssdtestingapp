@@ -59,7 +59,7 @@ internal static class AtaCommandPolicy
     internal static string ErrorExplanation(int error) => error switch
     {
         5 => "Access denied. Windows ATA pass-through requires a read/write-access handle; no elevation is requested automatically.",
-        1 or 50 => "Unsupported request reported by the Windows device stack; no USB SAT or RAID fallback is attempted.",
+        1 or 50 => "Unsupported request reported by the Windows device stack.",
         2 or 21 or 1167 => "Device disconnected or unavailable. Rescan drives before retrying.",
         _ => $"Operation failed (Windows error {error}); cause is not established."
     };
