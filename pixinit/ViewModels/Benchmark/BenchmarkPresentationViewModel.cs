@@ -95,8 +95,8 @@ public sealed partial class BenchmarkViewModel
     public bool HasUsbSpeedNotice => UsbSpeedNotice.Length > 0;
     public string ProtocolFooter => selectedDevice() is { } device ? $"Diagnostics: {device.Protocol}" + (device.Bus == Core.Devices.ConnectionBus.Usb ? " " + (device.UsbSpeed ?? "USB") : "") + (device.PcieGeneration is int gen && device.PcieLaneWidth is int lanes ? $" PCIe {gen}.0 x{lanes}" : "") : "";
     public string FriendlyHostWrites => Tbw?.WrittenTB is double written
-        ? Tbw.RatingVerified && Tbw.InterpretationVerified && Tbw.RatedTB > 0 ? $"Host writes: {written:F1} TB of {Tbw.RatedTB:F0} TB rated endurance" : written < 1 ? $"Host writes: {written * 1e12 / 1073741824d:N2} GiB / {written * 1000:N2} GB" : $"Host writes: {written:F3} TB"
-        : "Host writes unavailable - Remaining N/A";
+        ? Tbw.RatingVerified && Tbw.InterpretationVerified && Tbw.RatedTB > 0 ? $"{written:F1} TB of {Tbw.RatedTB:F0} TB rated endurance" : written < 1 ? $"{written * 1e12 / 1073741824d:N2} GiB / {written * 1000:N2} GB" : $"{written:F3} TB"
+        : "Unavailable - Remaining N/A";
     public string FriendlyEndurance => Tbw is { RatingVerified: true, InterpretationVerified: true, RemainingPercent: double remaining } ? $"{remaining:F0}% of rated endurance remaining (estimate)" :
         Tbw?.WrittenTB is null && Tbw is { RatedTB: > 0 } missing ? $"{missing.RatedTB:F0} TBW reference. Remaining N/A because host writes were not read" :
         Tbw is { RatingVerified: true, InterpretationVerified: false, RatedTB: > 0 } rated ? $"{rated.RatedTB:F0} TB manufacturer rating; SMART units unverified. Remaining N/A" :
@@ -217,7 +217,7 @@ public sealed partial class BenchmarkViewModel
         var passes = result!.PassResults.Where(p => p.Profile == summary.Profile && p.Measurement.Operation == operation).ToArray();
         var display = WritePassPresentation.Create(passes);
         return new(display.FilteredAverage is double filtered ? $"{filtered:F2} MB/s" : $"{summary.AverageMBs:F2} MB/s",
-            $"Best {summary.BestMBs:F2} MB/s | {(display.FilteredAverage.HasValue ? $"{display.Retained}/{display.Total}" : summary.CompletedPasses.ToString())} passes" + (profile!.Random ? $" | {summary.AverageIOPS:F0} IOPS" : ""), summary.Profile, display.Tooltip + (result.TargetVolumeUsedPercentAtStart is double used ? $"\nVolume at start: {used:F1}% used; cache exhaustion is not confirmed." : ""))
+            $"Best {summary.BestMBs:F2} MB/s | {(display.FilteredAverage.HasValue ? $"{display.Retained}/{display.Total}" : summary.CompletedPasses.ToString())} {(summary.CompletedPasses == 1 ? "pass" : "passes")}" + (profile!.Random ? $" | {summary.AverageIOPS:F0} IOPS" : ""), summary.Profile, display.Tooltip + (result.TargetVolumeUsedPercentAtStart is double used ? $"\nVolume at start: {used:F1}% used; cache exhaustion is not confirmed." : ""))
         { MeasuredAverage = display.FilteredAverage.HasValue ? $"All-pass avg {summary.AverageMBs:F2} MB/s | {display.Total - display.Retained} low-write outlier(s) filtered" : "" };
     }
     public string WriteDropWarning

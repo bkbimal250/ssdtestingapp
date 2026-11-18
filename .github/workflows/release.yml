@@ -1,0 +1,68 @@
+name: Windows Release
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-and-sign:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore pixinit.slnx
+
+      - name: Build
+        run: dotnet build pixinit.slnx -c Release --no-restore --warnaserror
+
+      - name: Publish unsigned Windows application
+        run: >-
+          dotnet publish pixinit/pixinit.csproj -c Release -r win-x64
+          --self-contained true --no-restore
+          -o artifacts/unsigned
+
+      - name: Upload unsigned artifact for SignPath
+        id: unsigned-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixinit-unsigned-win-x64
+          path: artifacts/unsigned/PIXINIT.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      # Configure these only after SignPath Foundation approval.
+      - name: Submit to SignPath
+        id: signpath
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' && vars.SIGNPATH_PROJECT_SLUG != '' && vars.SIGNPATH_SIGNING_POLICY_SLUG != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned-artifact.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: artifacts/signed
+
+      - name: Upload signed artifact
+        if: ${{ steps.signpath.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixinit-signed-win-x64
+          path: artifacts/signed
+          if-no-files-found: error

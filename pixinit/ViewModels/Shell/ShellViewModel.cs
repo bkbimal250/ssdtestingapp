@@ -234,7 +234,7 @@ public sealed class ShellViewModel : ObservableObject
             QueueAutomaticDiagnostics();
         }
     }
-    public string DeviceSummary => $"Found {selection.Devices.Count} SSDs";
+    public string DeviceSummary => $"Found {selection.Devices.Count} SSD{(selection.Devices.Count == 1 ? "" : "s")}";
     public bool SataEmpty => SataDevices.Count == 0;
     public bool NvmeEmpty => NvmeDevices.Count == 0;
     public int ActiveTab
